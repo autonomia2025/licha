@@ -137,10 +137,14 @@ async function supabaseClient() {
   const { createClient } = await import('@supabase/supabase-js');
   const sb = createClient(url, key, { auth: { persistSession: false } });
   // Falla temprano (antes de descargar nada) si la clave o las tablas no están bien.
-  const probeDb = await sb.from('courses').select('id').limit(1);
+  const withTimeout = (p, what) =>
+    Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`Supabase no respondió en 20 s (${what}). Revisa tu conexión y SUPABASE_URL.`)), 20000))]);
+  console.log('Comprobando conexión con Supabase…');
+  const probeDb = await withTimeout(sb.from('courses').select('id').limit(1), 'tablas');
   if (probeDb.error) throw new Error(`Supabase rechazó la conexión: ${probeDb.error.message}`);
-  const probeBucket = await sb.storage.from(BUCKET).list('', { limit: 1 });
+  const probeBucket = await withTimeout(sb.storage.from(BUCKET).list('', { limit: 1 }), 'storage');
   if (probeBucket.error) throw new Error(`No puedo acceder al bucket ${BUCKET}: ${probeBucket.error.message}`);
+  console.log('Supabase OK ✓');
   return { sb, url, key };
 }
 
