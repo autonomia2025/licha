@@ -77,8 +77,10 @@ function findLessonText(json, lessonId) {
       } else walk(c, `${p}.${k}`, id);
     }
   })(json?.props?.pageProps ?? {}, '$.props.pageProps', null);
-  // Preferimos el texto asociado al id de la lección; si no, cualquiera fuera del árbol del curso.
-  return hits.find((h) => h.owner_id === lessonId) ?? hits.find((h) => !h.path.includes('.course.')) ?? null;
+  // Solo se acepta texto que pertenezca a la lección (mismo id) o que esté bajo selectedModule/renderData.
+  // Textos del grupo, del curso o de la configuración (currentGroup, course.metadata.desc, settings…) se descartan.
+  const own = hits.find((h) => h.owner_id === lessonId) ?? hits.find((h) => /\.(selectedModule|renderData\.(module|lesson))\./.test(h.path) && !/\.(currentGroup|group|settings|self)\./.test(h.path));
+  return { text: own ?? null, candidates: hits.map((h) => ({ path: h.path, same_id: h.owner_id === lessonId, length: h.value.length })) };
 }
 
 /** Lee un .m3u8 desde el propio contexto de la página de Skool (como lo haría el reproductor). */
@@ -242,7 +244,7 @@ async function main() {
             n.children?.forEach(walk);
           })(t?.node);
           const md = node?.metadata ?? {};
-          const text = findLessonText(json, l.id);
+          const { text, candidates } = findLessonText(json, l.id);
           const videoLink = typeof md.videoLink === 'string' && md.videoLink ? md.videoLink : null;
           const video = isObj(pp.video) && pp.video.playbackId ? pp.video : isObj(pp.renderData?.video) && pp.renderData.video.playbackId ? pp.renderData.video : null;
           const rec = {
@@ -251,6 +253,7 @@ async function main() {
             metadata_keys: Object.keys(md).sort(),
             skool_video_id: md.videoId ?? null,
             text: text ? { source_path: text.path, ...describeText({ desc: text.value }), raw: text.value } : null,
+            text_candidates: candidates,
             resources: l.attachments,
             video_provider: video ? 'skool-mux' : l.video.video_link_provider,
             external_video_url: !video && videoLink ? videoLink : null,
@@ -298,6 +301,7 @@ function summarize(db) {
     `- Duración total nativa (según videoLenMs): ${Math.round(nat.reduce((s, l) => s + (l.video_len_ms ?? 0), 0) / 3600000)} h`,
     `- Lecciones con texto: ${done.filter((l) => l.text).length} (origen: ${JSON.stringify(count(done.filter((l) => l.text), (l) => l.text.source_path))})`,
     `- Lecciones con recursos: ${done.filter((l) => l.resources?.length).length} · recursos: ${done.reduce((s, l) => s + (l.resources?.length ?? 0), 0)} (${JSON.stringify(count(done.flatMap((l) => l.resources ?? []), (r) => r.kind))})`,
+    `- Rutas de texto candidatas (todas las vistas, id = coincide con la lección): ${JSON.stringify(count(done.flatMap((l) => l.text_candidates ?? []), (c) => `${c.path}${c.same_id ? ' (id)' : ''}`))}`,
     '',
     '## Por curso',
     '',
