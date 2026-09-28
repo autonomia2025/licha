@@ -35,6 +35,25 @@ node --env-file=.env pilot.mjs --url "https://www.skool.com/<grupo>/classroom" -
 `--auto N` elige N lecciones cortas y variadas (una ≥1060p, una 720p y una de otro curso);
 `--lessons id1,id2` fija las lecciones. Otras opciones: `--keep-temp`, `--headless`.
 
+## Estructura completa (sin videos)
+
+Sube los 14 cursos, módulos y lecciones (en orden, con su texto, tipo y enlaces externos) y copia portadas
+y miniaturas a Storage. Pesa muy poco: cabe sin problema en el plan gratuito.
+
+```bash
+node --env-file=.env import-structure.mjs --url "https://www.skool.com/<grupo>/classroom"
+```
+
+## Migración de videos en orden, con presupuesto
+
+Sube los videos **en el orden del classroom** (curso → módulo → lección), salta los que ya están subidos
+y **se detiene antes de pasarse** del presupuesto de almacenamiento. Para continuar más adelante (por ejemplo,
+después de subir de plan), basta con volver a ejecutarlo con un presupuesto mayor.
+
+```bash
+node --env-file=.env pilot.mjs --url "https://www.skool.com/<grupo>/classroom" --all --budget-gb 0.9
+```
+
 ## Pruebas
 
 `npm test`: parsers HLS y unión de WebVTT. `test/e2e-mock.mjs`: prueba de punta a punta contra un HLS
