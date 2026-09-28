@@ -6,6 +6,25 @@
 
 Leyenda: ✅ verificado con la sonda en este Skool · 🔶 inferencia razonable, aún no verificada · ❓ desconocido.
 
+## 0. Resultado del inventario completo (504 lecciones visitadas, 0 errores, 0 bytes de video) ✅
+
+| | Cantidad |
+|---|---|
+| Lecciones totales | 763 |
+| **Con acceso real** para esta cuenta | **461** (todas con texto) |
+| Sin acceso (drip, pago aparte, nivel) | 302 = 259 solo con título + 43 con miniatura pero **sin token** de reproducción |
+| **Videos nativos descargables** (Mux, con token) | **353** · ~**31 h** en total (según `videoLenMs`) |
+| … con subtítulos | **352** (todos en inglés, "English CC"); 1 sin subtítulos (Origins 6.7 "The Desire Calendar - Part 2") |
+| … calidad máxima | 1080p o cercano (1036–1078p) en ~285 · 720p en 52 · otros (642–974p) en ~16 |
+| Videos externos | 23 (Loom 16, YouTube 4, Vimeo 3) |
+| Lecciones sin video (texto o enlace) | 86 |
+| Adjuntos | 5 archivos en 3 lecciones |
+
+Estimaciones (a confirmar en el piloto):
+- **Tamaño** de 353 videos, variante máxima + audio: **~25–60 GB**, según el bitrate real.
+- **Descarga** desde el Mac: del orden de **3–8 h** en total, fraccionable y reanudable.
+- **Subtítulos**: menos de 50 MB en total.
+
 ---
 
 ## 1. Estructura detectada ✅

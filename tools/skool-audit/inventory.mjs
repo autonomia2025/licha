@@ -287,7 +287,9 @@ function summarize(db) {
   const ls = Object.values(db.lessons);
   const acc = ls.filter((l) => l.accessible);
   const done = acc.filter((l) => l.done);
-  const nat = done.filter((l) => l.native);
+  // Con playbackId pero sin token = Skool muestra la miniatura pero no deja reproducir (sin acceso real).
+  const nat = done.filter((l) => l.native?.token_present);
+  const natLocked = done.filter((l) => l.native && !l.native.token_present);
   const count = (arr, f) => arr.reduce((m, x) => ((m[f(x)] = (m[f(x)] ?? 0) + 1), m), {});
   const L = [
     `# Inventario completo — ${db.group}`,
@@ -296,7 +298,7 @@ function summarize(db) {
     '',
     `- Cursos: ${Object.keys(db.courses).length} · lecciones: ${ls.length} · accesibles: ${acc.length} · inventariadas: ${done.length} · con error: ${acc.filter((l) => l.error).length} · sin acceso: ${ls.length - acc.length}`,
     `- Proveedor de video: ${JSON.stringify(count(done, (l) => l.video_provider ?? 'ninguno'))}`,
-    `- Video nativo (Mux): ${nat.length} · con subtítulos: ${nat.filter((l) => l.native.subtitles?.length).length} · idiomas: ${JSON.stringify(count(nat.flatMap((l) => l.native.subtitles ?? []), (s) => s.language ?? '?'))}`,
+    `- Video nativo (Mux) reproducible: ${nat.length} · con miniatura pero sin token (sin acceso real): ${natLocked.length} · con subtítulos: ${nat.filter((l) => l.native.subtitles?.length).length} · idiomas: ${JSON.stringify(count(nat.flatMap((l) => l.native.subtitles ?? []), (s) => s.language ?? '?'))}`,
     `- Calidad máxima: ${JSON.stringify(count(nat, (l) => l.native.qualities?.[0] ?? '?'))}`,
     `- Duración total nativa (según videoLenMs): ${Math.round(nat.reduce((s, l) => s + (l.video_len_ms ?? 0), 0) / 3600000)} h`,
     `- Lecciones con texto: ${done.filter((l) => l.text).length} (origen: ${JSON.stringify(count(done.filter((l) => l.text), (l) => l.text.source_path))})`,
@@ -305,14 +307,14 @@ function summarize(db) {
     '',
     '## Por curso',
     '',
-    '| Curso | Lecciones | Accesibles | Mux | Con subs | Externos | Sin video | Con texto | Recursos | Errores |',
+    '| Curso | Lecciones | Accesibles | Mux reproducible | Con subs | Externos | Sin video | Con texto | Recursos | Errores |',
     '|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const [slug, c] of Object.entries(db.courses)) {
     const cl = ls.filter((l) => l.course === slug);
     const cd = cl.filter((l) => l.done);
     L.push(
-      `| ${slug} ${c.title} | ${cl.length} | ${cl.filter((l) => l.accessible).length} | ${cd.filter((l) => l.native).length} | ${cd.filter((l) => l.native?.subtitles?.length).length} | ${cd.filter((l) => !l.native && l.video_provider).length} | ${cd.filter((l) => !l.video_provider).length} | ${cd.filter((l) => l.text).length} | ${cd.reduce((s, l) => s + (l.resources?.length ?? 0), 0)} | ${cl.filter((l) => l.error).length} |`,
+      `| ${slug} ${c.title} | ${cl.length} | ${cl.filter((l) => l.accessible).length} | ${cd.filter((l) => l.native?.token_present).length} | ${cd.filter((l) => l.native?.subtitles?.length).length} | ${cd.filter((l) => !l.native && l.video_provider).length} | ${cd.filter((l) => !l.video_provider).length} | ${cd.filter((l) => l.text).length} | ${cd.reduce((s, l) => s + (l.resources?.length ?? 0), 0)} | ${cl.filter((l) => l.error).length} |`,
     );
   }
   const odd = nat.filter((l) => l.native.master_status !== 200 || !l.native.subtitles?.length);
