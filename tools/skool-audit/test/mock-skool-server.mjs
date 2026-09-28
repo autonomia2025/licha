@@ -37,12 +37,23 @@ export function start(port = 0) {
           if ('${md}' === 'l3') document.getElementById('thumb').onclick = go; else go();</script>`;
       if (md === 'l4') player = '<iframe src="https://www.youtube.com/embed/xyz"></iframe>';
       const title = md ? `<h1>${{ l1: 'Bienvenida', l2: 'Instalación', l3: 'Primer proyecto', l4: 'Extra' }[md]}</h1>` : '';
-      return send(200, 'text/html; charset=utf-8', page(courseND, links + title + player + '<a href="https://files.example.com/guia.pdf">Guía PDF</a>'));
+      const now = Math.floor(Date.now() / 1000);
+      const tok = `${b64({ alg: 'RS256' })}.${b64({ sub: 'PB' + md, aud: 'v', exp: now + 86400, kid: 'k', playback_restriction_id: 'r' })}.c2ln`;
+      const nd = JSON.parse(JSON.stringify(courseND));
+      if (md === 'l1' || md === 'l2') nd.props.pageProps.video = { playbackId: 'PB' + md, playbackToken: tok };
+      if (md === 'l2') nd.props.pageProps.selectedModule = { id: 'l2', metadata: { desc: '[v2][{"type":"paragraph","children":[{"text":"Prompts: texto de la lección"}]}]' } };
+      return send(200, 'text/html; charset=utf-8', page(nd, links + title + player + '<a href="https://files.example.com/guia.pdf">Guía PDF</a>'));
     }
     if (u.pathname.startsWith('/api/lessons/')) {
       const now = Math.floor(Date.now() / 1000);
       const jwt = `${b64({ alg: 'RS256' })}.${b64({ sub: 'PLAYBACKID0001', aud: 'v', exp: now + 21600, iat: now })}.c2lnbmF0dXJl`;
       return send(200, 'application/json', JSON.stringify({ playback: { url: `${origin}/video/PLAYBACKID0001/master.m3u8?token=${jwt}` } }));
+    }
+    if (u.pathname.startsWith('/stream/')) {
+      // Imita la restricción por dominio: sin Referer del sitio → 403.
+      if (!(req.headers.referer || '').startsWith(origin)) return send(403, 'text/plain', 'forbidden');
+      if (u.pathname.endsWith('subtitles.m3u8')) return send(200, 'application/vnd.apple.mpegurl', fx('subtitles.m3u8'));
+      return send(200, 'application/vnd.apple.mpegurl', fx('master.m3u8'));
     }
     if (u.pathname.startsWith('/video/')) {
       if (!u.searchParams.get('token') && !u.pathname.endsWith('.vtt') && !u.pathname.includes('/subs/')) return send(403, 'text/plain', 'forbidden');

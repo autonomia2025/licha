@@ -22,6 +22,7 @@ import { createInterface } from 'node:readline/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { redactUrl, redactString, pathPattern, signatureInfo, shapeOf } from './lib/redact.mjs';
+import { makeShouldBlock } from './lib/safety.mjs';
 import { isMasterPlaylist, parseMaster, parseMediaPlaylist, inspectVtt } from './lib/hls.mjs';
 import { findCourseTree, findCourseList, flattenCourse, keyFrequency, normalizeNode } from './lib/tree.mjs';
 
@@ -60,30 +61,12 @@ const hostOf = (u) => {
 const isSkoolHost = (u) => /(^|\.)skool\.com$/.test(hostOf(u)) || hostOf(u) === START.host;
 
 // ---------------------------------------------------------------- red: bloqueo + registro
-const MEDIA_EXT = /\.(ts|m4s|mp4|m4v|m4a|aac|mp3|webm|mov|mkv|cmfv|cmfa|mpd)(\?|$)/i;
-const TEXT_OK = /\.(m3u8|vtt|webvtt|json|jpe?g|png|webp|gif|svg|css|js|woff2?)(\?|$)/i;
-const SEGMENT_HINT = /\/(chunk|segment|frag|seg-|range)/i;
-const VIDEO_CDN = /mux\.com|googlevideo\.com|vimeocdn\.com|akamaized\.net|cloudfront\.net|b-cdn\.net|wistia\.(com|net)|loom\.com|fastly/i;
-const EXTERNAL_PLAYER = /(youtube\.com|youtube-nocookie\.com|player\.vimeo\.com|loom\.com|wistia\.(com|net)|vidyard\.com)/i;
-
 const net = []; // resumen de cada respuesta (redactado)
 const blocked = []; // peticiones abortadas
 const bodies = new Map(); // SOLO en memoria: cuerpos de texto de m3u8 / JSON / HTML para análisis; nunca se escriben
 let mediaBytes = 0;
 
-function shouldBlock(req) {
-  const url = req.url();
-  const rt = req.resourceType();
-  if (rt === 'media') return 'media';
-  if (MEDIA_EXT.test(new URL(url).pathname)) return 'extension-de-video/audio';
-  if (VIDEO_CDN.test(hostOf(url)) && !TEXT_OK.test(new URL(url).pathname) && (rt === 'xhr' || rt === 'fetch' || rt === 'other'))
-    return 'cdn-de-video-sin-extension-de-texto';
-  if ((rt === 'xhr' || rt === 'fetch') && SEGMENT_HINT.test(new URL(url).pathname) && !TEXT_OK.test(new URL(url).pathname))
-    return 'posible-segmento';
-  // Reproductores externos (YouTube/Vimeo/Loom/Wistia…): basta con la URL del iframe, no se carga.
-  if (EXTERNAL_PLAYER.test(hostOf(url)) && hostOf(url) !== START.host) return 'reproductor-externo';
-  return null;
-}
+const shouldBlock = makeShouldBlock(START.host);
 
 async function onResponse(resp) {
   const req = resp.request();

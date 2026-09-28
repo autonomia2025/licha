@@ -99,7 +99,8 @@ Lectura:
 - **Vimeo**: `videoLink`; iframe `player.vimeo.com` (bloqueado).
 - **Sin video** (p. ej. "📌 Evolve Master Prompt Doc", "💥 Action Item: Self Onboarding"): `videoLink` vacío y un enlace externo. Son lecciones de texto o de enlace a documento.
 - **Sin acceso** (Call Recordings, drip): la página no carga reproductor. Se confirma que no hay contenido disponible para esta cuenta.
-- ❓ **Lecciones 1.2 y 2.4** de fc758841: tienen `videoId`, pero no cargaron `<mux-player>` ni `pageProps.video` útil. Hay capturas locales en `out/screens/` para ver qué muestran.
+- ✅ **Lecciones 1.2 y 2.4** de fc758841: las capturas muestran un **video nativo normal** (miniatura con play). El clic automático no dio en el botón, pero el video se obtiene igual desde `pageProps.video`, sin clic.
+- ⚠️ **Texto de las lecciones**: las capturas muestran texto enriquecido ("Prompts: …", titulares, imágenes y un segundo video) que el árbol del curso **no** incluye. Por eso las "9 descripciones" del conteo anterior eran un subconteo. `inventory.mjs` busca el texto en todo el JSON de la página de la lección.
 
 ## 5. Subtítulos ✅
 
@@ -176,14 +177,16 @@ Decisión pendiente: **Supabase Storage no es una plataforma de video** (no tran
 
 ## 10. Riesgos e incógnitas
 
-### 10.1 Decisión crítica: la restricción de dominio de Mux
+### 10.1 La restricción de dominio de Mux y la autorización
 
-El dueño del contenido configuró en Mux que los videos **solo se reproduzcan desde skool.com**. Técnicamente, un proceso fuera del navegador obtiene 200 enviando la cabecera `Referer: https://www.skool.com/`. **Pero eso es imitar el origen para pasar un control de acceso puesto a propósito.** No se debe construir el migrador sobre ese truco sin **autorización escrita del propietario del curso** que cubra explícitamente la descarga y el rehospedaje. (La sonda solo lo usó una vez por lección para diagnosticar, con el master de texto, sin descargar video.)
+Los videos nativos solo se sirven a peticiones que vienen de skool.com. Es una **restricción de la plataforma Skool** (su cuenta de Mux), no algo que haya configurado el creador. Sin cookies y sin Referer el master responde 403; desde la página de Skool, 200.
 
-Opciones, de más a menos recomendable:
-1. **El propietario exporta los originales** desde Skool o Mux, o te da acceso de administrador. Sin restricciones, con la mejor calidad y sin riesgo legal ni técnico.
-2. **Autorización escrita del propietario** para descargar vía la sesión: el migrador corre en tu máquina, dentro del navegador de la sesión.
-3. Sin autorización explícita: **no migrar los videos**; solo estructura, texto y subtítulos, si también están autorizados.
+**Contexto confirmado por el usuario:** el proyecto lo pide el **propietario del curso**, que quiere dejar Skool, y lo ejecuta un amigo suyo con acceso al curso.
+
+Consecuencias de diseño:
+- Toda lectura de manifests se hace **desde la propia página de Skool, en el navegador con la sesión** (como el reproductor), no imitando cabeceras desde un servidor. `inventory.mjs` ya funciona así.
+- El proceso que use la sesión (inventario y, más adelante, la obtención de video) corre en una **máquina del usuario o del propietario**, no en un servidor anónimo. Solo el procesamiento posterior de archivos ya obtenidos puede ir a la nube.
+- **Recomendado antes de migrar video**: (1) autorización escrita del propietario (basta un mensaje o correo); (2) preguntarle si conserva los **archivos originales** de los videos o las cuentas de Loom, YouTube y Vimeo. Serían de mejor calidad y evitarían descargar ~400 videos desde Skool. (3) Revisar si los términos de Skool permiten exportar el contenido propio. (4) Idealmente, ejecutar el inventario con la **cuenta del propietario**, que ve las 259 lecciones hoy bloqueadas.
 
 ### 10.2 Otros riesgos
 2. ⚠️ **AWS WAF**: riesgo de bloqueo desde cloud o headless. No se evade; si bloquea, el paso [A] se queda en local.
@@ -206,4 +209,4 @@ Opciones, de más a menos recomendable:
 | 5 | ¿Subtítulos automáticos? | **Sí** ✅: `TYPE=SUBTITLES` en el master → segmentos WebVTT legibles sin tocar el video. Inglés en toda la muestra. |
 | 6 | ¿Documentos o archivos automáticos? | **Parcial**: se detectan en `metadata.resources` (4 recursos en 2 lecciones de la muestra; 3 lecciones en total), pero falta ver cómo se obtiene la URL de descarga. |
 | 7 | ¿Qué falta? | (a) ✅ restricción = dominio de origen (§10.1); (b) ✅ token en `__NEXT_DATA__`; (c) las 2 lecciones sin HLS (capturas); (d) cómo se descargan los adjuntos; (e) cobertura de subtítulos en los ~396 videos; (f) **autorización escrita del propietario**, que ahora es el bloqueo principal; (g) decisión de almacenamiento o servicio de video. |
-| 8 | ¿Siguiente paso? | 1) Resolver (f) con el propietario: exportación de originales o autorización escrita. 2) Mientras tanto, un **inventario completo sin descargar nada**: recorrer las ~420 lecciones accesibles leyendo solo `__NEXT_DATA__` (sin clic, ~5 s por lección), guardando `playbackId`, calidades, pistas de subtítulos y recursos en un JSON. Eso cierra (c), (d) y (e) y deja listo el esquema definitivo. |
+| 8 | ¿Siguiente paso? | Ejecutar `node inventory.mjs --url https://www.skool.com/evolve-8484/classroom` (inventario completo, sin descargar nada, reanudable, ~1 h para ~500 lecciones). Mientras tanto, pedir al propietario la autorización escrita y preguntarle por los originales. Con el inventario completo se define el esquema de Supabase y se diseña el migrador. |

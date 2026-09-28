@@ -32,6 +32,17 @@ Opciones: `--smart` (añade a la muestra lecciones con adjuntos, Loom, YouTube, 
 
 La sesión se guarda en `.skool-profile/` en la raíz del repo, y los resultados en `tools/skool-audit/out/`. **Ambos están en `.gitignore`: no los subas nunca.**
 
+## Inventario completo (`inventory.mjs`)
+
+Recorre **todas** las lecciones accesibles sin hacer clic en nada. De cada página lee los datos que trae (`__NEXT_DATA__`): texto, recursos, proveedor de video y, si el video es nativo, `pageProps.video`. Con eso pide **solo** las playlists `.m3u8` del master y de los subtítulos, desde la propia página de Skool, igual que haría el reproductor. Así obtiene las calidades y las pistas de subtítulos. No descarga video, subtítulos ni adjuntos, y no guarda tokens.
+
+```bash
+node inventory.mjs --url "https://www.skool.com/<grupo>/classroom"            # todo (~5–8 s por lección)
+node inventory.mjs --url "https://www.skool.com/<grupo>/classroom" --limit 20 # prueba corta
+```
+
+Es **reanudable**: si se corta, al volver a ejecutarlo continúa donde quedó (`--refresh` rehace todo). Por defecto se salta las lecciones sin acceso (`--include-locked` las visita igual). Genera `out/full-inventory.json` (el texto completo de cada lección queda solo en local) y `out/full-inventory-summary.md`.
+
 ## Resultados
 
 - `out/report.md`: informe legible (estructura, muestra de lecciones, HLS, subtítulos, adjuntos, autenticación).
