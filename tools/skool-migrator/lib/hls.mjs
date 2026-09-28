@@ -109,3 +109,10 @@ export async function downloadRendition({ text, baseUrl, dir, get, concurrency =
   await writeFile(playlistPath, localPlaylist);
   return { playlistPath, count: files.length, bytes };
 }
+
+/** Duración total (s) de un media playlist: suma de los #EXTINF. */
+export function playlistDuration(text) {
+  let total = 0;
+  for (const m of text.matchAll(/#EXTINF:([\d.]+)/g)) total += Number(m[1]);
+  return total;
+}

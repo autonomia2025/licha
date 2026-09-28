@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
-import { downloadRendition, parseMaster, pickAudio, pickBest } from './lib/hls.mjs';
+import { downloadRendition, parseMaster, pickAudio, pickBest, playlistDuration } from './lib/hls.mjs';
 import { mergeSegments } from './lib/vtt.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -241,14 +241,40 @@ async function upsertStructure(sb, db, l) {
 }
 
 // ------------------------------------------------------------------ una lección
+/** Video que no cabe en el límite por archivo del plan: se salta (no es un error). */
+class TooBigError extends Error {
+  constructor(bytes, exact) {
+    super(`${exact ? '' : '≈ '}${mb(bytes)} supera el límite de ${mb(MAX_FILE_BYTES)} por archivo del plan`);
+    this.bytes = bytes;
+  }
+}
+
+// Envoltorio: los temporales se borran SIEMPRE, también cuando la lección falla (si no, el disco se llena).
 async function migrateLesson(ctx, page, l, supa, db) {
   const dir = path.join(TMP, l.id);
+  try {
+    return await migrateLessonInner(ctx, page, l, supa, db, dir);
+  } finally {
+    if (!args['keep-temp']) await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function migrateLessonInner(ctx, page, l, supa, db, dir) {
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
   const t0 = Date.now();
 
-  // 1) Token fresco desde la página de la lección (la misma que ve el usuario).
-  await page.goto(l.lesson_url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  // 1) Token fresco desde la página de la lección (la misma que ve el usuario). Reintenta si Skool tarda.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await page.goto(l.lesson_url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      break;
+    } catch (e) {
+      if (attempt >= 3) throw e;
+      console.log(`    (Skool no respondió, reintento ${attempt + 1}/3…)`);
+      await sleep(5000 * attempt);
+    }
+  }
   await sleep(1500);
   const video = await page.evaluate(() => {
     try {
@@ -277,6 +303,13 @@ async function migrateLesson(ctx, page, l, supa, db) {
   // 2) Descarga de video y audio (segmentos a disco temporal).
   const progress = (label) => (d, t, b) => process.stdout.write(`\r      ${label}: ${d}/${t} segmentos · ${mb(b)}   `);
   const vText = (await get(best.uri)).toString('utf8');
+  // Duración real del video (suma de segmentos) y tamaño estimado ANTES de descargar nada.
+  const srcDuration = playlistDuration(vText);
+  if (MAX_FILE_BYTES && best.bandwidth && srcDuration) {
+    const est = (best.bandwidth / 8) * srcDuration;
+    // BANDWIDTH es el pico: solo se salta sin descargar cuando es claramente demasiado grande.
+    if (est * 0.6 > MAX_FILE_BYTES) throw new TooBigError(est * 0.6, false);
+  }
   const v = await downloadRendition({ text: vText, baseUrl: best.uri, dir: path.join(dir, 'video'), get, onProgress: progress('video') });
   process.stdout.write('\n');
   let a = null;
@@ -294,10 +327,16 @@ async function migrateLesson(ctx, page, l, supa, db) {
   const info = await probe(mp4);
   const srcStart = (await probe(v.playlistPath)).start_s; // inicio del video HLS, para alinear subtítulos
   const size = (await stat(mp4)).size;
-  const expected = l.video_len_ms ? l.video_len_ms / 1000 : null;
-  const durationOk = expected == null || Math.abs(info.duration_s - expected) <= Math.max(3, expected * 0.02);
-  console.log(`    MP4 ${info.width}x${info.height} ${info.video_codec}/${info.audio_codec} · ${mb(size)} · ${info.duration_s.toFixed(1)} s (esperado ${expected?.toFixed(1) ?? '?'} s) ${durationOk ? '✓' : '✗'}`);
-  if (!durationOk) throw new Error('La duración del MP4 no coincide con videoLenMs');
+  // La referencia es el propio stream (suma de segmentos). El videoLenMs de Skool a veces es de una
+  // versión anterior del video: si no coincide solo se avisa.
+  const close = (a, b) => Math.abs(a - b) <= Math.max(3, b * 0.02);
+  const expected = srcDuration || (l.video_len_ms ? l.video_len_ms / 1000 : null);
+  const durationOk = expected == null || close(info.duration_s, expected);
+  console.log(`    MP4 ${info.width}x${info.height} ${info.video_codec}/${info.audio_codec} · ${mb(size)} · ${info.duration_s.toFixed(1)} s (stream ${expected?.toFixed(1) ?? '?'} s) ${durationOk ? '✓' : '✗'}`);
+  if (!durationOk) throw new Error('La duración del MP4 no coincide con la del stream');
+  if (l.video_len_ms && !close(info.duration_s, l.video_len_ms / 1000))
+    console.log(`    (aviso: Skool indica ${(l.video_len_ms / 1000).toFixed(1)} s; se usa la duración real del stream)`);
+  if (MAX_FILE_BYTES && size > MAX_FILE_BYTES) throw new TooBigError(size, true);
 
   // 4) Subtítulos: todos los segmentos .vtt → un archivo por idioma.
   const tracks = [];
@@ -388,8 +427,6 @@ async function migrateLesson(ctx, page, l, supa, db) {
     result.localDir = keep;
   }
 
-  // 6) Limpieza.
-  if (!args['keep-temp']) await rm(dir, { recursive: true, force: true });
   return result;
 }
 
@@ -426,15 +463,23 @@ ${rows.join('\n')}`;
 async function main() {
   const db = JSON.parse(await readFile(INVENTORY, 'utf8'));
   const ALL = args.all === true;
+  // Restos de ejecuciones anteriores (pueden ocupar varios GB).
+  if (!args['keep-temp']) await rm(TMP, { recursive: true, force: true });
   await checkFfmpeg();
   const supa = UPLOAD ? await supabaseClient() : null;
   let lessons;
+  let knownBig = new Set();
   // Presupuesto de almacenamiento (modo --all): se detiene ANTES de pasarse.
   const budgetBytes = Number(args['budget-gb'] ?? 0.95) * 1073741824;
   let usedBytes = 0;
   if (ALL) {
     if (!supa) throw new Error('--all requiere subir a Supabase (no uses --no-upload).');
     const done = await sbRetry(() => supa.sb.from('lesson_videos').select('lesson_id,size_bytes,status').eq('status', 'stored'), 'lesson_videos');
+    // Ya sabemos que estos no caben en el plan actual: no se vuelven a descargar.
+    const big = MAX_FILE_BYTES
+      ? await sbRetry(() => supa.sb.from('lesson_videos').select('lesson_id,size_bytes').eq('status', 'skipped').gt('size_bytes', MAX_FILE_BYTES), 'lesson_videos')
+      : { data: [] };
+    knownBig = new Set(big.data.map((r) => r.lesson_id));
     if (done.error) throw new Error(done.error.message);
     const stored = new Set(done.data.map((r) => r.lesson_id));
     usedBytes = done.data.reduce((s, r) => s + Number(r.size_bytes ?? 0), 0) + 50 * 1048576; // + margen para miniaturas y subtítulos
@@ -462,15 +507,23 @@ async function main() {
   for (const l of lessons) {
     // Estimación prudente con el bitrate real observado (hasta ~0,13 MB/s).
     const estimate = ((l.video_len_ms ?? 600000) / 1000) * 0.13 * 1048576;
+    if (ALL && knownBig.has(l.id)) {
+      skippedBig++;
+      continue;
+    }
     if (ALL && MAX_FILE_BYTES && l.video_len_ms && estimate > MAX_FILE_BYTES) {
       skippedBig++;
       console.log(`\n· ${l.course} ${l.module_position}.${l.position} ${l.title}: se salta (≈ ${mb(estimate)} > límite de ${mb(MAX_FILE_BYTES)} por archivo del plan)`);
       continue;
     }
     if (ALL && usedBytes + estimate > budgetBytes) {
+      // No cabe este, pero quizá sí uno más corto de los siguientes: se sigue hasta que quede muy poco espacio.
       stoppedByBudget = true;
-      console.log(`\n■ Presupuesto alcanzado: usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}. Siguiente pendiente: ${l.course} ${l.module_position}.${l.position} ${l.title}`);
-      break;
+      if (budgetBytes - usedBytes < 8 * 1048576) {
+        console.log(`\n■ Presupuesto agotado: usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}.`);
+        break;
+      }
+      continue;
     }
     console.log(`\n▶ ${l.course} ${l.module_position}.${l.position} ${l.title}`);
     try {
@@ -479,13 +532,19 @@ async function main() {
       usedBytes += r.size;
       console.log(`    listo en ${r.seconds} s${ALL ? ` · usado ≈ ${mb(usedBytes)}` : ''}`);
     } catch (e) {
+      if (e instanceof TooBigError) {
+        skippedBig++;
+        console.log(`    · se salta: ${e.message} (se subirá con el plan Pro)`);
+        if (supa) await supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', status: 'skipped', size_bytes: Math.round(e.bytes), error: e.message, updated_at: new Date().toISOString() });
+        continue;
+      }
       console.log(`    ✗ ${e.message}`);
       if (supa) await supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', status: 'failed', error: String(e.message).slice(0, 500), updated_at: new Date().toISOString() });
     }
   }
   await ctx.close();
   if (ALL) {
-    console.log(`\nResumen: ${results.length} videos subidos en esta pasada · ${skippedBig} saltados por tamaño · usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}${stoppedByBudget ? ' · detenido por presupuesto (sube el plan y vuelve a ejecutar para continuar)' : ''}`);
+    console.log(`\nResumen: ${results.length} videos subidos en esta pasada · ${skippedBig} saltados por tamaño · usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}${stoppedByBudget ? ' · el resto no cabe en el presupuesto (sube el plan y vuelve a ejecutar para continuar)' : ''}`);
     if (results.length < lessons.length && !stoppedByBudget) process.exitCode = 1;
     return;
   }

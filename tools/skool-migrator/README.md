@@ -55,6 +55,12 @@ node --env-file=.env pilot.mjs --url "https://www.skool.com/<grupo>/classroom" -
 # Plan gratuito: salta videos de más de 50 MB (se suben después). Con plan Pro: --max-file-mb 0 --budget-gb 90
 ```
 
+- El tamaño se estima con el stream **antes** de descargar; si tras unir el MP4 pesa más del límite, se salta
+  y queda como `skipped` en `lesson_videos` (las siguientes pasadas no lo vuelven a descargar).
+- Los temporales (`tmp/`) se borran siempre, también cuando una lección falla, y al empezar cada ejecución.
+- La duración se valida contra el propio stream; si el `videoLenMs` de Skool no coincide, solo se avisa.
+- Si un video no cabe en el presupuesto, sigue probando con los siguientes (más cortos) hasta llenarlo.
+
 ## Pruebas
 
 `npm test`: parsers HLS y unión de WebVTT. `test/e2e-mock.mjs`: prueba de punta a punta contra un HLS
