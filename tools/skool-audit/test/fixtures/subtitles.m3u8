@@ -1,0 +1,8 @@
+#EXTM3U
+#EXT-X-TARGETDURATION:600
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXTINF:600.0,
+subs/0.vtt?token=abc
+#EXTINF:312.5,
+subs/1.vtt?token=abc
+#EXT-X-ENDLIST

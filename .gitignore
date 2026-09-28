@@ -1,0 +1,6 @@
+node_modules/
+# Perfil de navegador con la sesión de Skool (cookies). NUNCA commitear.
+.skool-profile/
+# Resultados de auditoría: contienen contenido del curso e identificadores. NUNCA commitear.
+tools/skool-audit/out/
+.DS_Store

@@ -1,0 +1,20 @@
+{
+  "buildId": "test-build",
+  "props": { "pageProps": {
+    "course": {
+      "course": { "id": "c0000000000000000000000000000001", "name": "abc12345", "unitType": "course", "metadata": { "title": "Curso Demo" } },
+      "children": [
+        { "course": { "id": "s1", "unitType": "set", "metadata": { "title": "Módulo 1" } },
+          "children": [
+            { "course": { "id": "l1", "unitType": "module", "metadata": { "title": "Bienvenida", "desc": "Hola, mira https://example.com/img.png", "videoId": "vid-1", "videoLenMs": 60000, "resources": "[{\"title\":\"Guía\",\"file_id\":\"f1\",\"file_name\":\"guia.pdf\",\"file_content_type\":\"application/pdf\"}]" } } },
+            { "course": { "id": "l2", "unitType": "module", "metadata": { "title": "Instalación", "videoId": "vid-2" } } },
+            { "course": { "id": "l3", "unitType": "module", "metadata": { "title": "Primer proyecto" } } }
+          ] },
+        { "course": { "id": "s2", "unitType": "set", "metadata": { "title": "Módulo 2" } },
+          "children": [
+            { "course": { "id": "l4", "unitType": "module", "metadata": { "title": "Extra", "videoLink": "https://youtu.be/xyz" } } }
+          ] }
+      ]
+    }
+  } }
+}

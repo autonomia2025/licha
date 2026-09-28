@@ -1,0 +1,14 @@
+{
+  "name": "skool-audit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sonda de auditoría de SOLO LECTURA para descubrir la estructura de un curso de Skool usando la sesión autorizada del usuario. No descarga video.",
+  "type": "module",
+  "scripts": {
+    "audit": "node audit.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.56.0"
+  }
+}
