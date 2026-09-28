@@ -25,6 +25,11 @@ Estimaciones (a confirmar en el piloto):
 - **Descarga** desde el Mac: del orden de **3–8 h** en total, fraccionable y reanudable.
 - **Subtítulos**: menos de 50 MB en total.
 
+## 0.1.1 Decisiones del propietario (28-09-2026)
+
+- **Subtítulos: solo inglés** ("English CC", los que ya existen en Skool). No se traducen.
+- **Calidad: solo la máxima original** de cada video (un MP4 por lección, sin selector de calidad).
+
 ## 0.2 Piloto de migración (28-09-2026) ✅
 
 `tools/skool-migrator/pilot.mjs`, ejecutado en el Mac del usuario, con autorización del propietario. El destino es el proyecto Supabase `negriwqegrqqsdpxrmny`: tablas de `supabase/migrations/20260928000000_course_migration_pilot.sql` y bucket privado `course-media`.
