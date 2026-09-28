@@ -4,3 +4,7 @@ node_modules/
 # Resultados de auditoría: contienen contenido del curso e identificadores. NUNCA commitear.
 tools/skool-audit/out/
 .DS_Store
+# Claves de Supabase del migrador (service_role). NUNCA commitear.
+.env
+tools/skool-migrator/tmp/
+tools/skool-migrator/out/
