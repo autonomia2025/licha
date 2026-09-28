@@ -83,14 +83,23 @@ Lectura:
 | Pregunta | Respuesta |
 |---|---|
 | Proveedor | **Mux**, detrás de dominios de Skool: etiqueta `<mux-player>`, analítica `inferred.litix.io` (Mux Data), master en `stream.video.skool.com/<playbackId>.m3u8`, renditions en `manifest-*.fastly.video.skool.com` y segmentos en `chunk-*.fastly.video.skool.com`. |
-| ¿Aparece en el HTML o en el JSON? | El `videoId` sí está en el JSON. La URL del master **no** aparece literal en ninguna respuesta capturada. ❓ Falta saber si el `playbackId` o el token vienen en el HTML en otro formato; la sonda v3 lo mide. |
-| ¿Requiere interacción? | **Sí**: el reproductor solo pide el manifest tras hacer clic en la miniatura. |
-| ¿Hay un ID estable? | El `playbackId` en el path del master es estable por video (según el modelo de Mux) 🔶. Falta confirmar si coincide con `metadata.videoId`. |
+| ¿Aparece en el HTML o en el JSON? | **Sí** ✅ (v3). El HTML de la lección trae en `__NEXT_DATA__` los campos `props.pageProps.video.playbackId` y `props.pageProps.video.playbackToken` (duplicados en `renderData.video`). Con ellos se forma el master: `https://stream.video.skool.com/<playbackId>.m3u8?token=<playbackToken>`. Coincide con los atributos de `<mux-player>`. **No hace falta ninguna llamada extra a la API.** |
+| ¿Requiere interacción? | Para que el reproductor lo pida, sí (clic). **Para obtenerlo, no**: basta cargar la página `?md=<id>` y leer `pageProps.video`. |
+| ¿Hay un ID estable? | Hay dos IDs: `metadata.videoId` (interno de Skool, en el árbol) y el `playbackId` de Mux (en `pageProps.video`). **No son el mismo valor** ✅. El `playbackId` es estable por video según el modelo de Mux 🔶; el token cambia en cada carga. |
 | Firma | `?token=<JWT>` con claims `aud="v"`, `sub`, `exp`, `kid` y **`playback_restriction_id`**. |
 | Duración de la URL firmada | **~24 h** (`exp` ≈ 86 000–87 700 s tras cargar la página). |
-| ¿Funciona sin la sesión? | **No con una petición "desnuda": 403.** El claim `playback_restriction_id` indica restricciones de reproducción de Mux (típicamente por dominio de origen o por user agent) 🔶. La v3 de la sonda distingue el caso sin cookies, sin cookies con Referer de skool.com, y con sesión. |
+| ¿Funciona sin la sesión? | ✅ (v3, solo el master de texto): **sin cookies y sin Referer → 403**; **sin cookies con `Referer: skool.com` → 200**; con sesión y Referer → 200. Las cookies de Skool **no** hacen falta para el manifest. Lo que exige es una **restricción de reproducción de Mux por dominio de origen** (`playback_restriction_id`). |
 | Calidades | Varían por video (`1080/720/480/270`, `1080/480/270`, `1078/480/270`); se guardan por video. |
 | CDN | Varias regiones y proveedores (`oci-us-phoenix`, `oci-us-ashburn`, `gcp-us-east1`). No se debe fijar ningún host. |
+
+## 4.1 Videos externos y lecciones sin video (v3) ✅
+
+- **Loom**: se detecta por `metadata.videoLink` y por un iframe de `www.loom.com` (la sonda lo bloqueó).
+- **YouTube**: `videoLink`; la página muestra una miniatura (`i.ytimg.com`) y carga el iframe solo al pulsar.
+- **Vimeo**: `videoLink`; iframe `player.vimeo.com` (bloqueado).
+- **Sin video** (p. ej. "📌 Evolve Master Prompt Doc", "💥 Action Item: Self Onboarding"): `videoLink` vacío y un enlace externo. Son lecciones de texto o de enlace a documento.
+- **Sin acceso** (Call Recordings, drip): la página no carga reproductor. Se confirma que no hay contenido disponible para esta cuenta.
+- ❓ **Lecciones 1.2 y 2.4** de fc758841: tienen `videoId`, pero no cargaron `<mux-player>` ni `pageProps.video` útil. Hay capturas locales en `out/screens/` para ver qué muestran.
 
 ## 5. Subtítulos ✅
 
@@ -105,7 +114,8 @@ Lectura:
 
 - ✅ `metadata.resources` existe en la mayoría de las lecciones, pero **solo 3 lo tienen con contenido**.
 - ✅ En la muestra no hubo enlaces a archivos en el DOM. Hay enlaces externos en algunas lecciones y dentro de las descripciones `[v2]`.
-- ❓ Falta ver la forma exacta de los 3 recursos y cómo se obtiene su URL de descarga. La corrida `--smart` los incluye.
+- ✅ La lección "How To Onboard Brand Ambassadors" (curso fc758841) tiene 3 recursos en `metadata.resources`, y "How To Write Video Ads - Part 2" (curso 9917539c) tiene 1. **No aparecen como enlaces `<a>` en el DOM**: se abren con un botón.
+- ❓ Falta ver su forma exacta (el informe v3.1 imprime tipo, nombre, content-type y si tienen `file_id`) y qué endpoint entrega la URL de descarga.
 - Imágenes: portada de cada curso (`coverImage`/`coverImageFile`) y miniatura de cada lección (`videoThumbnail`).
 
 ## 7. Autenticación ✅ (solo nombres y atributos)
@@ -120,7 +130,7 @@ Lectura:
 Implicaciones para un proceso en cloud:
 - La sesión en sí dura mucho (365 días), así que un login manual único es viable.
 - **AWS WAF** exige un navegador real que ejecute su JavaScript cada pocos días. Además, puede bloquear IPs de datacenter. No lo vamos a evadir. Si bloquea al servidor, la parte que usa la sesión (descubrimiento y obtención de manifests) se ejecuta en una máquina del usuario.
-- Las URLs firmadas duran ~24 h, pero tienen restricciones de reproducción: está por confirmar si un worker en otro servidor puede usarlas.
+- Las URLs firmadas duran ~24 h y **no dependen de las cookies de Skool**. Lo que dependen es de una restricción de Mux por dominio de origen (ver §10.1).
 
 ---
 
@@ -166,7 +176,16 @@ Decisión pendiente: **Supabase Storage no es una plataforma de video** (no tran
 
 ## 10. Riesgos e incógnitas
 
-1. ❓ **Restricciones de reproducción de Mux** (`playback_restriction_id` y el 403 fuera del navegador). Es la incógnita que más condiciona la arquitectura. Si solo funcionan desde el navegador de la sesión, el procesamiento debe hacerse en esa misma máquina o en ese mismo contexto de navegador.
+### 10.1 Decisión crítica: la restricción de dominio de Mux
+
+El dueño del contenido configuró en Mux que los videos **solo se reproduzcan desde skool.com**. Técnicamente, un proceso fuera del navegador obtiene 200 enviando la cabecera `Referer: https://www.skool.com/`. **Pero eso es imitar el origen para pasar un control de acceso puesto a propósito.** No se debe construir el migrador sobre ese truco sin **autorización escrita del propietario del curso** que cubra explícitamente la descarga y el rehospedaje. (La sonda solo lo usó una vez por lección para diagnosticar, con el master de texto, sin descargar video.)
+
+Opciones, de más a menos recomendable:
+1. **El propietario exporta los originales** desde Skool o Mux, o te da acceso de administrador. Sin restricciones, con la mejor calidad y sin riesgo legal ni técnico.
+2. **Autorización escrita del propietario** para descargar vía la sesión: el migrador corre en tu máquina, dentro del navegador de la sesión.
+3. Sin autorización explícita: **no migrar los videos**; solo estructura, texto y subtítulos, si también están autorizados.
+
+### 10.2 Otros riesgos
 2. ⚠️ **AWS WAF**: riesgo de bloqueo desde cloud o headless. No se evade; si bloquea, el paso [A] se queda en local.
 3. ❓ **2 de 10 lecciones sin HLS** (1.2 y 2.4) aunque tienen `videoId`. La v3 reintenta el clic y guarda una captura local de la pantalla.
 4. ❓ Cobertura de subtítulos e idiomas en los ~396 videos (solo tenemos la muestra de 8).
@@ -183,8 +202,8 @@ Decisión pendiente: **Supabase Storage no es una plataforma de video** (no tran
 | 1 | ¿Primer módulo automático? | **Sí** ✅: primer `set` de `pageProps.course.children` (por ejemplo, "👋 Start Here"). |
 | 2 | ¿Primera lección automática? | **Sí** ✅: primer hijo del primer módulo, con URL `?md=<id>` (por ejemplo, "🆕 Start Here: Overview Of Evolve"). |
 | 3 | ¿Orden completo automático? | **Sí** ✅: orden de `children`, validado contra la barra lateral en los 14 cursos. |
-| 4 | ¿Videos automáticos? | **Sí** ✅: `videoId` en el JSON y master HLS (Mux) capturado al pulsar play, con calidades por video. Falta explicar 2 lecciones sin HLS. |
+| 4 | ¿Videos automáticos? | **Sí** ✅: `pageProps.video.playbackId` + `playbackToken` en el HTML de cada lección → master HLS de Mux, sin clic ni API extra. Loom, YouTube y Vimeo se detectan por `videoLink`. Faltan 2 lecciones por explicar. |
 | 5 | ¿Subtítulos automáticos? | **Sí** ✅: `TYPE=SUBTITLES` en el master → segmentos WebVTT legibles sin tocar el video. Inglés en toda la muestra. |
-| 6 | ¿Documentos o archivos automáticos? | **Parcial**: se detectan (`resources`, 3 lecciones), pero falta ver cómo se descargan. |
-| 7 | ¿Qué falta? | (a) Qué exigen las restricciones de reproducción de Mux; (b) de dónde sale el token; (c) las 2 lecciones sin HLS; (d) los 3 adjuntos; (e) la cobertura de subtítulos en todos los videos; (f) la autorización del propietario; (g) la decisión de almacenamiento o servicio de video. |
-| 8 | ¿Siguiente paso? | Ejecutar la sonda v3: `node audit.mjs --url https://www.skool.com/evolve-8484/classroom --smart`. Resuelve (a)–(d). Después, si todo cuadra, una pasada de **solo manifests** sobre los ~396 videos nativos, sin descargar nada, para cerrar (e) y tener el inventario completo antes de escribir el migrador. |
+| 6 | ¿Documentos o archivos automáticos? | **Parcial**: se detectan en `metadata.resources` (4 recursos en 2 lecciones de la muestra; 3 lecciones en total), pero falta ver cómo se obtiene la URL de descarga. |
+| 7 | ¿Qué falta? | (a) ✅ restricción = dominio de origen (§10.1); (b) ✅ token en `__NEXT_DATA__`; (c) las 2 lecciones sin HLS (capturas); (d) cómo se descargan los adjuntos; (e) cobertura de subtítulos en los ~396 videos; (f) **autorización escrita del propietario**, que ahora es el bloqueo principal; (g) decisión de almacenamiento o servicio de video. |
+| 8 | ¿Siguiente paso? | 1) Resolver (f) con el propietario: exportación de originales o autorización escrita. 2) Mientras tanto, un **inventario completo sin descargar nada**: recorrer las ~420 lecciones accesibles leyendo solo `__NEXT_DATA__` (sin clic, ~5 s por lección), guardando `playbackId`, calidades, pistas de subtítulos y recursos en un JSON. Eso cierra (c), (d) y (e) y deja listo el esquema definitivo. |

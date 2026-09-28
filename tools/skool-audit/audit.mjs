@@ -760,6 +760,7 @@ function renderReport(inv) {
         L.push(`   - subtítulos: ${sub.name} [${sub.language}] · segmentos ${sub.segments?.segment_count ?? '?'} (${sub.segments?.segment_extensions?.join(',') ?? '?'}) · WebVTT: ${yes(sub.first_segment_check?.is_webvtt)}`);
       if (!h.subtitles.length) L.push('   - subtítulos: ninguno en el master');
     }
+    for (const a of s.attachments_in_tree) L.push(`   - adjunto: ${a.kind} · "${a.title ?? '—'}" · archivo: ${a.file_name ?? '—'} · tipo: ${a.content_type ?? '—'} · file_id: ${yes(a.has_file_id)} · host: ${a.link_host ?? '—'} · claves: ${a.keys.join(',')}`);
     L.push(
       `   - iframes: ${s.dom.iframes.map(hostOf).join(', ') || '—'} · player tags: ${s.dom.custom_player_tags.join(', ') || '—'}`,
       `   - adjuntos (metadata): ${s.attachments_in_tree.length} · enlaces a archivo (DOM): ${s.dom.file_links.length} · enlaces externos: ${s.dom.external_links.length} · imágenes grandes: ${s.dom.large_images.length}`,
