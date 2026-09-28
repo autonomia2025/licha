@@ -52,6 +52,7 @@ después de subir de plan), basta con volver a ejecutarlo con un presupuesto may
 
 ```bash
 node --env-file=.env pilot.mjs --url "https://www.skool.com/<grupo>/classroom" --all --budget-gb 0.9
+# Plan gratuito: salta videos de más de 50 MB (se suben después). Con plan Pro: --max-file-mb 0 --budget-gb 90
 ```
 
 ## Pruebas

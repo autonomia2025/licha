@@ -42,6 +42,8 @@ const START = new URL(args.url);
 const ORIGIN = START.origin;
 const UPLOAD = args['no-upload'] !== true;
 const MAX_LESSONS = 5;
+// Límite por archivo del plan de Supabase (Free = 50 MB). Con plan Pro: --max-file-mb 0 (sin límite) o el que configures.
+const MAX_FILE_BYTES = Number(args['max-file-mb'] ?? 50) * 1048576;
 const BUCKET = 'course-media';
 const STREAM_BASE = args['stream-base'] ?? 'https://stream.video.skool.com';
 const INVENTORY = path.resolve(here, args.inventory ?? '../skool-audit/out/full-inventory.json');
@@ -333,6 +335,7 @@ async function migrateLesson(ctx, page, l, supa, db) {
   if (supa) {
     await upsertStructure(supa.sb, db, l);
     await sbRetry(() => supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', source_video_id: l.skool_video_id, playback_id: video.playbackId, status: 'processing', updated_at: new Date().toISOString() }), 'lesson_videos');
+    if (MAX_FILE_BYTES && size > MAX_FILE_BYTES) throw new Error(`pendiente: el MP4 pesa ${mb(size)} y el plan admite ${mb(MAX_FILE_BYTES)} por archivo`);
     await tusUpload(supa, mp4, result.videoPath, 'video/mp4');
     for (const t of tracks) {
       const p = `${base}/subtitles/${t.lang}.vtt`;
@@ -455,9 +458,15 @@ async function main() {
 
   const results = [];
   let stoppedByBudget = false;
+  let skippedBig = 0;
   for (const l of lessons) {
-    // Estimación prudente: ~0,27 GB/h medido en el piloto, con 40 % de margen.
-    const estimate = ((l.video_len_ms ?? 600000) / 3600000) * 0.27 * 1.4 * 1073741824;
+    // Estimación prudente con el bitrate real observado (hasta ~0,13 MB/s).
+    const estimate = ((l.video_len_ms ?? 600000) / 1000) * 0.13 * 1048576;
+    if (ALL && MAX_FILE_BYTES && l.video_len_ms && estimate > MAX_FILE_BYTES) {
+      skippedBig++;
+      console.log(`\n· ${l.course} ${l.module_position}.${l.position} ${l.title}: se salta (≈ ${mb(estimate)} > límite de ${mb(MAX_FILE_BYTES)} por archivo del plan)`);
+      continue;
+    }
     if (ALL && usedBytes + estimate > budgetBytes) {
       stoppedByBudget = true;
       console.log(`\n■ Presupuesto alcanzado: usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}. Siguiente pendiente: ${l.course} ${l.module_position}.${l.position} ${l.title}`);
@@ -476,7 +485,7 @@ async function main() {
   }
   await ctx.close();
   if (ALL) {
-    console.log(`\nResumen: ${results.length} videos subidos en esta pasada · usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}${stoppedByBudget ? ' · detenido por presupuesto (sube el plan y vuelve a ejecutar para continuar)' : ''}`);
+    console.log(`\nResumen: ${results.length} videos subidos en esta pasada · ${skippedBig} saltados por tamaño · usado ≈ ${mb(usedBytes)} de ${mb(budgetBytes)}${stoppedByBudget ? ' · detenido por presupuesto (sube el plan y vuelve a ejecutar para continuar)' : ''}`);
     if (results.length < lessons.length && !stoppedByBudget) process.exitCode = 1;
     return;
   }
