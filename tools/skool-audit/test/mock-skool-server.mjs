@@ -24,15 +24,17 @@ export function start(port = 0) {
       const md = u.searchParams.get('md');
       const links = ['l1', 'l2', 'l3', 'l4'].map((id) => `<a href="/grp/classroom/abc12345?md=${id}">${id}</a>`).join('');
       let player = '';
-      if (md === 'l1' || md === 'l2')
-        player = `<video id="v"></video><script>
-          (async () => {
+      if (md === 'l1' || md === 'l2' || md === 'l3')
+        player = `<div id="thumb" style="width:640px;height:360px;background:#000"></div><video id="v"></video><script>
+          const go = async () => {
             const j = await (await fetch('/api/lessons/${md}/video', {headers:{'x-mock':'1'}})).json();
             const m = await (await fetch(j.playback.url)).text();
             const variant = new URL(m.split('\\n').find(l => l.startsWith('720/')), j.playback.url);
             const v = await (await fetch(variant)).text();
             fetch(new URL('0.ts', variant)).catch(() => {});
-          })();</script>`;
+          };
+          // l3 imita un reproductor que solo carga el video al hacer clic en la miniatura
+          if ('${md}' === 'l3') document.getElementById('thumb').onclick = go; else go();</script>`;
       if (md === 'l4') player = '<iframe src="https://www.youtube.com/embed/xyz"></iframe>';
       const title = md ? `<h1>${{ l1: 'Bienvenida', l2: 'Instalación', l3: 'Primer proyecto', l4: 'Extra' }[md]}</h1>` : '';
       return send(200, 'text/html; charset=utf-8', page(courseND, links + title + player + '<a href="https://files.example.com/guia.pdf">Guía PDF</a>'));
