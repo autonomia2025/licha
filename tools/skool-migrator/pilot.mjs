@@ -314,6 +314,17 @@ async function migrateLesson(ctx, page, l, supa, db) {
     tracks.push({ lang, label: s.name || lang, isDefault: s.default, file, cueCount: merged.cueCount });
   }
 
+  // Miniatura propia: un cuadro del video (al 15 %, evitando la pantalla negra inicial).
+  const thumb = path.join(dir, 'thumb.jpg');
+  let thumbOk = false;
+  try {
+    const at = Math.max(1, Math.min(info.duration_s * 0.15, 30)).toFixed(1);
+    await run(ffmpegPath, ['-y', '-v', 'error', '-ss', at, '-i', mp4, '-frames:v', '1', '-vf', 'scale=960:-2', '-q:v', '4', thumb]);
+    thumbOk = true;
+  } catch {
+    /* sin miniatura: la app usa un degradado */
+  }
+
   const checksum = await sha256(mp4);
   const base = `courses/${l.course}/lessons/${l.id}`;
   const result = { lesson: l, info, size, checksum, tracks, videoPath: `${base}/video.mp4`, seconds: Math.round((Date.now() - t0) / 1000) };
@@ -358,6 +369,12 @@ async function migrateLesson(ctx, page, l, supa, db) {
     const folder = await sbRetry(() => supa.sb.storage.from(BUCKET).list(base, { search: 'video.mp4' }), 'verificación');
     const obj = folder.data?.find((o) => o.name === 'video.mp4');
     if (!obj || Number(obj.metadata?.size) !== size) throw new Error('Verificación de Storage falló (tamaño distinto o no existe)');
+    if (thumbOk) {
+      const tp = `thumbs/${l.id}.jpg`;
+      const tb = await readFile(thumb);
+      const up = await sbRetry(() => supa.sb.storage.from(BUCKET).upload(tp, tb, { contentType: 'image/jpeg', upsert: true, cacheControl: '604800' }), 'miniatura');
+      if (!up.error) await sbRetry(() => supa.sb.from('lessons').update({ thumbnail_path: tp, duration_ms: Math.round(info.duration_s * 1000) }).eq('id', l.id), 'miniatura en lessons');
+    }
     console.log('    Supabase: video, subtítulos y metadata guardados ✓');
   } else {
     // Sin subida: se conservan los archivos en out/ para revisarlos localmente.
