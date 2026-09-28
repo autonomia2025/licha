@@ -126,6 +126,22 @@ function pickLessons(db) {
 }
 
 // ------------------------------------------------------------------ Supabase
+const TRANSIENT = /fetch failed|network|timeout|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket|50[234]/i;
+/** Ejecuta una llamada de supabase-js ({ data, error }) con reintentos ante fallos de red transitorios. */
+async function sbRetry(fn, what) {
+  let r;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      r = await fn();
+    } catch (e) {
+      r = { error: e };
+    }
+    if (!r.error || !TRANSIENT.test(String(r.error.message ?? r.error))) return r;
+    await sleep(1500 * 2 ** attempt);
+  }
+  console.log(`      (reintentos agotados en ${what})`);
+  return r;
+}
 async function supabaseClient() {
   const url = process.env.SUPABASE_URL;
   // Clave secreta nueva (sb_secret_…) o, por compatibilidad, la service_role (JWT) antigua.
@@ -195,10 +211,10 @@ async function upsertStructure(sb, db, l) {
   const must = (r, what) => {
     if (r.error) throw new Error(`${what}: ${r.error.message}`);
   };
-  must(await sb.from('courses').upsert({ id: c.id, slug: c.slug, title: c.title, cover_image_url: c.cover_image, position: c.position, source: c.access ?? {} }), 'courses');
-  must(await sb.from('course_modules').upsert({ id: moduleId, course_id: c.id, position: mod.position ?? 0, title: mod.title ?? '(sin módulo)', is_implicit: !mod.id }), 'course_modules');
+  must(await sbRetry(() => sb.from('courses').upsert({ id: c.id, slug: c.slug, title: c.title, cover_image_url: c.cover_image, position: c.position, source: c.access ?? {} }), 'courses'), 'courses');
+  must(await sbRetry(() => sb.from('course_modules').upsert({ id: moduleId, course_id: c.id, position: mod.position ?? 0, title: mod.title ?? '(sin módulo)', is_implicit: !mod.id }), 'course_modules'), 'course_modules');
   must(
-    await sb.from('lessons').upsert({
+    await sbRetry(() => sb.from('lessons').upsert({
       id: l.id,
       course_id: c.id,
       module_id: moduleId,
@@ -208,7 +224,7 @@ async function upsertStructure(sb, db, l) {
       body_format: l.text?.format ?? null,
       source_url: l.lesson_url,
       accessible: true,
-    }),
+    }), 'lessons'),
     'lessons',
   );
   return { courseId: c.id, moduleId };
@@ -297,20 +313,21 @@ async function migrateLesson(ctx, page, l, supa, db) {
   // 5) Subida + metadata.
   if (supa) {
     await upsertStructure(supa.sb, db, l);
-    await supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', source_video_id: l.skool_video_id, playback_id: video.playbackId, status: 'processing', updated_at: new Date().toISOString() });
+    await sbRetry(() => supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', source_video_id: l.skool_video_id, playback_id: video.playbackId, status: 'processing', updated_at: new Date().toISOString() }), 'lesson_videos');
     await tusUpload(supa, mp4, result.videoPath, 'video/mp4');
     for (const t of tracks) {
       const p = `${base}/subtitles/${t.lang}.vtt`;
-      const up = await supa.sb.storage.from(BUCKET).upload(p, await readFile(t.file), { contentType: 'text/vtt', upsert: true });
+      const body = await readFile(t.file);
+      const up = await sbRetry(() => supa.sb.storage.from(BUCKET).upload(p, body, { contentType: 'text/vtt', upsert: true }), 'subtítulos');
       if (up.error) throw new Error(`subida ${p}: ${up.error.message}`);
-      const r = await supa.sb.from('lesson_subtitles').upsert(
+      const r = await sbRetry(() => supa.sb.from('lesson_subtitles').upsert(
         { lesson_id: l.id, language: t.lang, label: t.label, is_default: t.isDefault, cue_count: t.cueCount, storage_path: p, status: 'stored', updated_at: new Date().toISOString() },
         { onConflict: 'lesson_id,language' },
-      );
+      ), 'lesson_subtitles');
       if (r.error) throw new Error(`lesson_subtitles: ${r.error.message}`);
       t.storagePath = p;
     }
-    const r = await supa.sb.from('lesson_videos').upsert({
+    const r = await sbRetry(() => supa.sb.from('lesson_videos').upsert({
       lesson_id: l.id,
       provider: 'skool-mux',
       source_video_id: l.skool_video_id,
@@ -327,10 +344,10 @@ async function migrateLesson(ctx, page, l, supa, db) {
       error: null,
       migrated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    });
+    }), 'lesson_videos');
     if (r.error) throw new Error(`lesson_videos: ${r.error.message}`);
     // Verificación: el objeto existe en Storage con el tamaño esperado.
-    const folder = await supa.sb.storage.from(BUCKET).list(base, { search: 'video.mp4' });
+    const folder = await sbRetry(() => supa.sb.storage.from(BUCKET).list(base, { search: 'video.mp4' }), 'verificación');
     const obj = folder.data?.find((o) => o.name === 'video.mp4');
     if (!obj || Number(obj.metadata?.size) !== size) throw new Error('Verificación de Storage falló (tamaño distinto o no existe)');
     console.log('    Supabase: video, subtítulos y metadata guardados ✓');

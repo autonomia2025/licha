@@ -25,6 +25,22 @@ Estimaciones (a confirmar en el piloto):
 - **Descarga** desde el Mac: del orden de **3–8 h** en total, fraccionable y reanudable.
 - **Subtítulos**: menos de 50 MB en total.
 
+## 0.2 Piloto de migración (28-09-2026) ✅
+
+`tools/skool-migrator/pilot.mjs`, ejecutado en el Mac del usuario, con autorización del propietario. El destino es el proyecto Supabase `negriwqegrqqsdpxrmny`: tablas de `supabase/migrations/20260928000000_course_migration_pilot.sql` y bucket privado `course-media`.
+
+| Lección | Resultado | Video | Subtítulos |
+|---|---|---|---|
+| Archive 7.9 "How To Translate Text Accurately" | ✅ guardada | 1280x720, 51,2 s, 2,3 MB | en, 12 cues |
+| Archive 4.9 "Additional Resources For Editors" | ✅ guardada | 1670x1078, 86,0 s, 8,3 MB | en, 30 cues |
+| Origins 9.2 "Set Up & Warm Up Your FB Profile" | ⚠️ procesada (1628x1080, 41,5 s, 3,5 MB, 15 cues), pero falló al guardar por un corte de red momentáneo; ya se añadieron reintentos | | |
+
+Hallazgos del piloto:
+- La duración del MP4 coincide con `videoLenMs` (±1 s), y los subtítulos quedan alineados (0,0 s → fin).
+- Remux sin recodificar (h264/aac), resolución original.
+- **~0,27 GB por hora de video** → los ~31 h de los 353 videos pesarían **~8–10 GB**. No caben en el plan Free de Supabase (1 GB de almacenamiento, 50 MB por archivo): hace falta el plan **Pro**.
+- Hace falta `ffmpeg` del sistema en macOS (`brew install ffmpeg`); el binario de npm fallaba de forma intermitente.
+
 ---
 
 ## 1. Estructura detectada ✅
