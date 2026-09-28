@@ -101,6 +101,7 @@ Lectura:
 - **Sin acceso** (Call Recordings, drip): la página no carga reproductor. Se confirma que no hay contenido disponible para esta cuenta.
 - ✅ **Lecciones 1.2 y 2.4** de fc758841: las capturas muestran un **video nativo normal** (miniatura con play). El clic automático no dio en el botón, pero el video se obtiene igual desde `pageProps.video`, sin clic.
 - ⚠️ **Texto de las lecciones**: las capturas muestran texto enriquecido ("Prompts: …", titulares, imágenes y un segundo video) que el árbol del curso **no** incluye. Por eso las "9 descripciones" del conteo anterior eran un subconteo. `inventory.mjs` busca el texto en todo el JSON de la página de la lección.
+- ✅ **Dónde está el texto** (inventario, 20/20): en `metadata.desc` del **propio nodo de la lección**, dentro del árbol del curso. Skool **solo rellena `desc` para la lección seleccionada** (`?md=<id>`), así que hace falta cargar la página de cada lección. El resto de textos de la página (grupo, `settings.pageMeta`, curso) se descartan.
 
 ## 5. Subtítulos ✅
 
