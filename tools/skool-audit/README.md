@@ -28,7 +28,7 @@ node audit.mjs --url "https://www.skool.com/<grupo>/classroom"
 node audit.mjs --url "https://www.skool.com/<grupo>/classroom/<curso>" --modules 2 --lessons 5
 ```
 
-Opciones: `--headless` (una vez que ya existe la sesión), `--no-play` (no intenta pulsar play), `--max-courses N`, `--out dir`, `--profile dir`, `--chromium /ruta/al/chrome`.
+Opciones: `--smart` (añade a la muestra lecciones con adjuntos, Loom, YouTube, Vimeo, descripción, sin video y una sin acceso), `--course <slug>`, `--headless` (una vez que ya existe la sesión), `--no-play` (no intenta pulsar play), `--max-courses N`, `--out dir`, `--profile dir`, `--chromium /ruta/al/chrome`.
 
 La sesión se guarda en `.skool-profile/` en la raíz del repo, y los resultados en `tools/skool-audit/out/`. **Ambos están en `.gitignore`: no los subas nunca.**
 

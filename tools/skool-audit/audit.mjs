@@ -243,34 +243,68 @@ async function safeGoto(page, url) {
 const NOISE_HOSTS = /stripe\.com|stripe\.network|google|gstatic|facebook|doubleclick|intercom|segment|sentry|hotjar|clarity|tiktok|twitter|linkedin|amplitude|mixpanel|posthog|datadog|cloudflareinsights/i;
 
 // ---------------------------------------------------------------- análisis HLS de una lección
-async function analyzeHls(ctx, anon, windowStart, metadata) {
+async function analyzeHls(ctx, anon, windowStart, metadata, nextData, page) {
   const m3u8 = [...bodies.entries()].filter(([u, b]) => b.t >= windowStart && (/mpegurl/i.test(b.ct) || /\.m3u8/i.test(u)));
   const masters = m3u8.filter(([, b]) => isMasterPlaylist(b.text));
   if (!masters.length) return { found: false, m3u8_seen: m3u8.length };
   const [masterUrl, master] = masters[0];
   const parsed = parseMaster(master.text, masterUrl);
 
-  // ¿De dónde salió la URL del master? Buscamos respuestas JSON/HTML que la contengan.
+  // ¿De dónde salen el ID de reproducción y el token? Se buscan en HTML/JSON capturados y en __NEXT_DATA__.
+  const playbackId = new URL(masterUrl).pathname.split('/').filter(Boolean)[0]?.replace(/\.m3u8$/i, '') ?? '';
+  const token = new URL(masterUrl).searchParams.get('token') ?? '';
   const bare = masterUrl.split('?')[0];
   const sources = [...bodies.entries()]
-    .filter(([u, b]) => b.t >= windowStart && u !== masterUrl && !/mpegurl/i.test(b.ct) && b.text.includes(bare))
-    .map(([u, b]) => ({ pattern: pathPattern(u), content_type: b.ct }));
+    .filter(([u, b]) => b.t >= windowStart && u !== masterUrl && !/mpegurl/i.test(b.ct) && (b.text.includes(bare) || (playbackId && b.text.includes(playbackId)) || (token && b.text.includes(token))))
+    .map(([u, b]) => ({ pattern: pathPattern(u), content_type: b.ct, has_url: b.text.includes(bare), has_playback_id: b.text.includes(playbackId), has_token: Boolean(token) && b.text.includes(token) }));
+  const nextDataPaths = [];
+  if (nextData && playbackId) {
+    const seen = new Set();
+    (function walk(v, p) {
+      if (v && typeof v === 'object') {
+        if (seen.has(v)) return;
+        seen.add(v);
+        for (const [k, c] of Object.entries(v)) walk(c, `${p}.${k}`);
+      } else if (typeof v === 'string' && (v.includes(playbackId) || (token && v.includes(token)))) {
+        nextDataPaths.push({ path: p.replace(/\.\d+\./g, '.[i].'), has_playback_id: v.includes(playbackId), has_token: Boolean(token) && v.includes(token) });
+      }
+    })(nextData, '$');
+  }
+  let playerAttrs = null;
+  try {
+    playerAttrs = await page.evaluate((pid) => {
+      const el = document.querySelector('mux-player');
+      if (!el) return null;
+      return {
+        attribute_names: el.getAttributeNames().sort(),
+        playback_id_matches: el.getAttribute('playback-id') === pid,
+        has_playback_token_attr: el.hasAttribute('playback-token') || Boolean(el.tokens?.playback),
+      };
+    }, playbackId);
+  } catch {}
 
-  // ¿Algún segmento del path del manifest coincide con un valor de metadata de la lección?
-  const segs = new URL(masterUrl).pathname.split(/[/.]/).filter((s) => s.length >= 8);
+  // ¿Qué campo de metadata de la lección contiene el ID de reproducción?
   const idMatches = Object.entries(metadata || {})
-    .filter(([, v]) => typeof v === 'string' && segs.some((s) => v.includes(s)))
+    .filter(([, v]) => typeof v === 'string' && playbackId && v.includes(playbackId))
     .map(([k]) => k);
 
-  // ¿El master funciona SIN cookies? (determina si un servidor solo necesita la URL firmada)
-  let anonStatus = null;
-  try {
-    const r = await anon.get(masterUrl, { maxRedirects: 0 });
-    anonStatus = r.status();
-    await r.dispose();
-  } catch (e) {
-    anonStatus = `error:${e.message.slice(0, 60)}`;
-  }
+  // ¿Qué necesita la URL firmada para responder? (solo el master, texto de pocos KB)
+  const statusOf = async (fn) => {
+    try {
+      const r = await fn();
+      const st = r.status();
+      await r.dispose();
+      return st;
+    } catch (e) {
+      return `error:${e.message.slice(0, 60)}`;
+    }
+  };
+  const ref = { referer: `${ORIGIN}/`, origin: ORIGIN };
+  const anonStatus = {
+    sin_cookies_sin_referer: await statusOf(() => anon.get(masterUrl, { maxRedirects: 0 })),
+    sin_cookies_con_referer_skool: await statusOf(() => anon.get(masterUrl, { maxRedirects: 0, headers: ref })),
+    con_sesion_con_referer_skool: await statusOf(() => ctx.request.get(masterUrl, { maxRedirects: 0, headers: ref })),
+  };
 
   const subtitles = [];
   for (const s of parsed.subtitles) {
@@ -316,6 +350,8 @@ async function analyzeHls(ctx, anon, windowStart, metadata) {
     master_signature: signatureInfo(masterUrl),
     master_status_without_cookies: anonStatus,
     manifest_url_source: sources,
+    playback_id_in_next_data: nextDataPaths.slice(0, 10),
+    mux_player: playerAttrs,
     manifest_id_matches_metadata_keys: idMatches,
     qualities: parsed.qualities,
     variants: parsed.variants.map((v) => ({ ...v, uri: v.uri ? pathPattern(v.uri) : null })),
@@ -453,6 +489,8 @@ async function main() {
         lessons_with_video_field: flat.modules.flatMap((m) => m.lessons).filter((l) => Object.keys(l.video.fields).length).length,
         lessons_with_description: flat.modules.flatMap((m) => m.lessons).filter((l) => l.description.found).length,
         lessons_with_attachments: flat.modules.flatMap((m) => m.lessons).filter((l) => l.attachments.length).length,
+        // Lecciones cuya metadata trae solo título/miniatura o hasAccess=false: probablemente sin acceso (drip, pago aparte, nivel).
+        lessons_probably_locked: flat.modules.flatMap((m) => m.lessons).filter((l) => l.access_flags.hasAccess === false || l.metadata_keys.every((k) => k === 'title' || k === 'videoThumbnail')).length,
         video_providers: flat.modules.flatMap((m) => m.lessons).reduce((acc, l) => {
           const p = l.video.video_link_provider ?? (l.video.has_video_id ? 'id-sin-link' : 'ninguno');
           acc[p] = (acc[p] ?? 0) + 1;
@@ -535,14 +573,39 @@ async function main() {
   };
   await save();
 
-  // 4) Muestra profunda: primer curso con árbol, primeros N módulos × M lecciones
-  const target = courseReports.find((c) => c.structure && (!args.course || c.slug === args.course)) ?? courseReports.find((c) => c.structure);
-  if (target) {
-    const mods = target.structure.modules.slice(0, N_MODULES);
-    for (const mod of mods) {
-      for (const lesson of mod.lessons.slice(0, N_LESSONS)) {
+  // 4) Muestra profunda: primeros N módulos × M lecciones de un curso + (con --smart) hasta 2 lecciones
+  //    de cada tipo encontrado en TODOS los cursos (adjuntos, Loom, YouTube, Vimeo, descripción, sin video).
+  const main = courseReports.find((c) => c.structure && (!args.course || c.slug === args.course)) ?? courseReports.find((c) => c.structure);
+  const plan = [];
+  const planned = new Set();
+  const addPlan = (course, mod, lesson, reason) => {
+    if (planned.has(lesson.id)) return;
+    planned.add(lesson.id);
+    plan.push({ target: course, mod, lesson, reason });
+  };
+  if (main) for (const mod of main.structure.modules.slice(0, N_MODULES)) for (const lesson of mod.lessons.slice(0, N_LESSONS)) addPlan(main, mod, lesson, 'primeras');
+  if (args.smart) {
+    const all = courseReports.filter((c) => c.structure).flatMap((c) => c.structure.modules.flatMap((m) => m.lessons.map((l) => ({ c, m, l }))));
+    const accessible = (l) => l.access_flags.hasAccess !== false && !l.metadata_keys.every((k) => k === 'title' || k === 'videoThumbnail');
+    const cats = {
+      adjuntos: (l) => l.attachments.length > 0,
+      loom: (l) => l.video.video_link_provider === 'loom',
+      youtube: (l) => l.video.video_link_provider === 'youtube',
+      vimeo: (l) => l.video.video_link_provider === 'vimeo',
+      descripcion: (l) => l.description.found,
+      'sin-video': (l) => !l.video.has_video_id && !l.video.video_link_provider,
+      'posible-sin-acceso': (l) => !accessible(l),
+    };
+    for (const [reason, test] of Object.entries(cats)) {
+      all.filter(({ l }) => (reason === 'posible-sin-acceso' || accessible(l)) && test(l)).slice(0, reason === 'posible-sin-acceso' ? 1 : 2).forEach(({ c, m, l }) => addPlan(c, m, l, reason));
+    }
+  }
+  console.log(`\nMuestra: ${plan.length} lecciones`);
+  {
+    for (const { target, mod, lesson, reason } of plan) {
+      {
         const url = `${ORIGIN}/${GROUP}/classroom/${target.slug}?md=${lesson.id}`;
-        process.stdout.write(`  Lección ${mod.position}.${lesson.position} ${lesson.title ?? lesson.id}… `);
+        process.stdout.write(`  [${reason}] ${target.slug} ${mod.position}.${lesson.position} ${lesson.title ?? lesson.id}… `);
         try {
           const windowStart = Date.now();
           const gotoErr = await safeGoto(page, url);
@@ -556,7 +619,19 @@ async function main() {
           if (PLAY && !sawM3u8()) {
             clicked = await tryClickPlay(page);
             await waitM3u8(10000);
+            if (!sawM3u8()) {
+              await sleep(3000);
+              clicked = `${clicked}+${await tryClickPlay(page)}`;
+              await waitM3u8(10000);
+            }
             await sleep(1500); // deja llegar la playlist de subtítulos
+          }
+          let screenshot = null;
+          if (!sawM3u8()) {
+            // Solo local (out/ está en .gitignore): para ver qué muestra una lección sin video detectado.
+            await mkdir(path.join(OUT, 'screens'), { recursive: true });
+            screenshot = `screens/${lesson.id}.png`;
+            await page.screenshot({ path: path.join(OUT, screenshot) }).catch(() => (screenshot = null));
           }
           const dom = await domInventory(page);
           const nd = await readNextData(page);
@@ -575,7 +650,7 @@ async function main() {
             })(t?.node);
           }
           const htmlDoc = [...bodies.entries()].find(([u, b]) => b.t >= windowStart && b.ct.includes('html') && u.includes(`md=${lesson.id}`));
-          const hls = await analyzeHls(ctx, anon, windowStart, lessonNode?.metadata ?? {});
+          const hls = await analyzeHls(ctx, anon, windowStart, lessonNode?.metadata ?? {}, json, page);
           const apiCalls = net
             .filter((e) => e.t >= windowStart && e.skool && (e.type === 'xhr' || e.type === 'fetch'))
             .map((e) => ({ method: e.method, pattern: e.pattern, status: e.status, content_type: e.content_type, request_header_names: e.request_header_names, json_shape: e.json_shape }));
@@ -595,6 +670,7 @@ async function main() {
             media_refs_in_next_data: json ? findMediaRefs(json.props?.pageProps ?? json) : [],
             manifest_in_initial_html: htmlDoc && hls.found ? htmlDoc[1].text.includes(hls.master.split('?')[0].replace(/<jwt>/g, '')) : false,
             play_click: clicked,
+          screenshot,
             dom: {
               iframes: dom.iframes.filter((u) => !NOISE_HOSTS.test(hostOf(u))).map((u) => redactUrl(u)),
               videos: dom.videos,
@@ -611,9 +687,11 @@ async function main() {
           });
 
           const s = samples[samples.length - 1];
+          s.reason = reason;
+          s.course_slug = target.slug;
           console.log(hls.found ? `HLS ${hls.qualities.join('/')} · subs: ${hls.subtitles.map((x) => x.language || x.name).join(',') || 'ninguno'}` : s.dom.iframes.length ? `iframe ${s.dom.iframes.map(hostOf).join(',')}` : `sin HLS detectado (clic: ${clicked ?? 'no'}; hosts: ${s.hosts_contacted.join(',') || '—'})`);
         } catch (e) {
-          samples.push({ module: { position: mod.position, title: mod.title, id: mod.id }, lesson: { position: lesson.position, id: lesson.id, title: lesson.title }, error: String(e.message).slice(0, 200) });
+          samples.push({ course_slug: target.slug, reason, module: { position: mod.position, title: mod.title, id: mod.id }, lesson: { position: lesson.position, id: lesson.id, title: lesson.title }, error: String(e.message).slice(0, 200) });
           console.log(`error: ${String(e.message).slice(0, 120)} (sigo con la siguiente)`);
         }
         await save();
@@ -646,16 +724,16 @@ function renderReport(inv) {
       L.push('No se detectó árbol en el JSON de la página.', '');
       continue;
     }
-    L.push(`- Ruta del árbol en JSON: \`${c.tree_json_path}\``, `- Módulos: ${c.counts.modules} · Lecciones: ${c.counts.lessons}`, `- Con campo de video: ${c.counts.lessons_with_video_field} · con descripción: ${c.counts.lessons_with_description} · con adjuntos: ${c.counts.lessons_with_attachments}`, `- Proveedores (por metadata): ${JSON.stringify(c.counts.video_providers)}`, `- Campos de orden explícito vistos: ${c.structure.order_fields_seen.join(', ') || 'ninguno (orden = posición en el arreglo)'}`, `- Orden JSON vs DOM: ${JSON.stringify(c.order_check)}`, '');
+    L.push(`- Ruta del árbol en JSON: \`${c.tree_json_path}\``, `- Módulos: ${c.counts.modules} · Lecciones: ${c.counts.lessons}`, `- Probablemente sin acceso: ${c.counts.lessons_probably_locked} · con campo de video: ${c.counts.lessons_with_video_field} · con descripción: ${c.counts.lessons_with_description} · con adjuntos: ${c.counts.lessons_with_attachments}`, `- Proveedores (por metadata): ${JSON.stringify(c.counts.video_providers)}`, `- Campos de orden explícito vistos: ${c.structure.order_fields_seen.join(', ') || 'ninguno (orden = posición en el arreglo)'}`, `- Orden JSON vs DOM: ${JSON.stringify(c.order_check)}`, '');
     L.push('Claves de metadata por unitType:', '', '```json', JSON.stringify(c.key_frequency, null, 2), '```', '');
   }
   const ok = inv.courses.filter((c) => c.counts);
-  L.push('## Totales', '', `- Cursos: ${inv.courses.length} · módulos: ${ok.reduce((a, c) => a + c.counts.modules, 0)} · lecciones: ${ok.reduce((a, c) => a + c.counts.lessons, 0)}`, `- Lecciones con campo de video: ${ok.reduce((a, c) => a + c.counts.lessons_with_video_field, 0)} · con descripción: ${ok.reduce((a, c) => a + c.counts.lessons_with_description, 0)} · con adjuntos: ${ok.reduce((a, c) => a + c.counts.lessons_with_attachments, 0)}`, '');
+  L.push('## Totales', '', `- Cursos: ${inv.courses.length} · módulos: ${ok.reduce((a, c) => a + c.counts.modules, 0)} · lecciones: ${ok.reduce((a, c) => a + c.counts.lessons, 0)}`, `- Lecciones con campo de video: ${ok.reduce((a, c) => a + c.counts.lessons_with_video_field, 0)} · con descripción: ${ok.reduce((a, c) => a + c.counts.lessons_with_description, 0)} · con adjuntos: ${ok.reduce((a, c) => a + c.counts.lessons_with_attachments, 0)} · probablemente sin acceso: ${ok.reduce((a, c) => a + c.counts.lessons_probably_locked, 0)}`, '');
   L.push('## Muestra de lecciones', '');
   let lastMod = null;
   for (const s of inv.samples) {
     if (s.module.id !== lastMod) {
-      L.push(`### Módulo ${s.module.position}: ${s.module.title ?? '—'}`, '');
+      L.push(`### Curso ${s.course_slug ?? ''} · Módulo ${s.module.position}: ${s.module.title ?? '—'}`, '');
       lastMod = s.module.id;
     }
     if (s.error) {
@@ -665,13 +743,19 @@ function renderReport(inv) {
     const h = s.hls;
     L.push(
       `${s.lesson.position}. **${s.lesson.title ?? s.lesson.id}**`,
-      `   - id: \`${s.lesson.id}\` · URL: ${s.lesson.lesson_url}`,
+      `   - muestra: ${s.reason ?? '—'} · id: \`${s.lesson.id}\` · URL: ${s.lesson.lesson_url}`,
       `   - descripción: ${s.description.found ? `sí (${s.description.format}, ${s.description.length} chars, ${s.description.link_count} enlaces, ${s.description.image_count} imágenes)` : 'no'}`,
       `   - video (metadata): ${s.video_fields_in_tree.video_link_provider ?? (s.video_fields_in_tree.has_video_id ? 'id sin link' : 'no')} · campos: ${Object.keys(s.video_fields_in_tree.fields).join(', ') || '—'}`,
-      `   - HLS: ${h.found ? `sí · ${h.master_host} · ${h.qualities.join('/')} · audio separado: ${yes(h.audio.length)} · sin cookies: ${h.master_status_without_cookies}` : 'no'}`,
+      `   - HLS: ${h.found ? `sí · ${h.master_host} · ${h.qualities.join('/')} · audio separado: ${yes(h.audio.length)}` : `no${s.screenshot ? ` (captura: out/${s.screenshot})` : ''}`}`,
     );
     if (h.found) {
-      L.push(`   - firma master: ${JSON.stringify(h.master_signature)}`, `   - origen de la URL del manifest: ${h.manifest_url_source.map((x) => x.pattern).join(', ') || 'no encontrado en respuestas capturadas'}`);
+      L.push(
+        `   - firma master: ${JSON.stringify(h.master_signature)}`,
+        `   - respuesta del master: ${JSON.stringify(h.master_status_without_cookies)}`,
+        `   - origen del ID/token: ${h.manifest_url_source.map((x) => `${x.pattern} (url:${yes(x.has_url)} id:${yes(x.has_playback_id)} token:${yes(x.has_token)})`).join(', ') || 'no encontrado en respuestas capturadas'}`,
+        `   - ID en __NEXT_DATA__: ${h.playback_id_in_next_data.map((x) => `${x.path} (token:${yes(x.has_token)})`).join(', ') || 'no'} · campo de metadata con el ID: ${h.manifest_id_matches_metadata_keys.join(', ') || 'ninguno'}`,
+        `   - mux-player: ${h.mux_player ? `attrs=[${h.mux_player.attribute_names.join(', ')}] playback-id coincide: ${yes(h.mux_player.playback_id_matches)} token en atributo: ${yes(h.mux_player.has_playback_token_attr)}` : '—'}`,
+      );
       for (const sub of h.subtitles)
         L.push(`   - subtítulos: ${sub.name} [${sub.language}] · segmentos ${sub.segments?.segment_count ?? '?'} (${sub.segments?.segment_extensions?.join(',') ?? '?'}) · WebVTT: ${yes(sub.first_segment_check?.is_webvtt)}`);
       if (!h.subtitles.length) L.push('   - subtítulos: ninguno en el master');

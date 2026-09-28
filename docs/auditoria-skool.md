@@ -1,205 +1,190 @@
-# Auditoría técnica: migración autorizada de un curso de Skool
+# Auditoría técnica: migración autorizada del Skool `evolve-8484`
 
 > Etapa 1: **auditoría y descubrimiento**. No se ha descargado ningún video ni archivo, ni se ha migrado nada.
+> Evidencia: ejecución de `tools/skool-audit` en el Mac del usuario, con su sesión (28-09-2026).
+> **Bytes de video/audio recibidos: 0.** Hubo 41 peticiones de segmentos y reproductores externos, todas bloqueadas antes de salir.
 
-## 0. Estado real de esta auditoría (léelo primero)
-
-**No se pudo inspeccionar tu curso desde el entorno cloud de esta sesión**, por dos motivos:
-
-1. La política de red del contenedor bloquea `skool.com` (el proxy devuelve 403).
-2. El contenedor no tiene tu sesión de Skool. Tampoco sería correcto pedirte que pegues cookies aquí.
-
-Por eso **no invento un "ejemplo real"**. En su lugar entrego:
-
-- **`tools/skool-audit/`**: una sonda de solo lectura que ejecutas en tu Mac con tu sesión. Verifica automáticamente cada punto de esta auditoría y genera `out/report.md`. Está probada de punta a punta contra un servidor simulado: 0 bytes de video recibidos, segmentos bloqueados y ningún token en la salida.
-- Este documento, con cada afirmación etiquetada:
-
-| Etiqueta | Significado |
-|---|---|
-| ✅ **CONFIRMADO** | Lo observaste tú manualmente en este curso. |
-| 🔶 **HIPÓTESIS** | Conocimiento previo de cómo suele funcionar Skool o sus proveedores. **No verificado en ESTE curso.** |
-| 🔍 **LO VERIFICA LA SONDA** | Campo concreto del informe que lo confirmará o refutará. |
-
-## 0.1 Evidencia real: primera ejecución de la sonda (grupo `evolve-8484`)
-
-| Hallazgo | Estado |
-|---|---|
-| 14 cursos en el classroom, detectados desde el JSON de la página (el DOM no tiene enlaces `<a>` a cursos) | ✅ |
-| 763 lecciones en total (177, 72, 7, 24, 124, 120, 15, 115, 17, 7, 1, 1, 50 y 33 por curso), con curso → módulo → lección leído del JSON | ✅ |
-| URL de lección `/<grupo>/classroom/<slug-curso>?md=<id 32 hex>` | ✅ |
-| Muestra de 10 lecciones (curso `fc758841`, módulos 1–2): **8 con HLS nativo** y subtítulos `en` | ✅ |
-| **Las calidades varían por video**: 1080/720/480/270, 1080/480/270 o 1078/480/270. Hay que guardarlas por video, no asumir una escalera fija. | ✅ |
-| Hubo que pulsar play: el manifest solo se pide al hacer clic en la miniatura | ✅ |
-| 2 de 10 sin HLS detectado (1.2 y 2.4). Pendiente: ¿no tienen video nativo, usan otro proveedor o no respondieron al clic? | ❓ |
-| La página carga el SDK de **AWS WAF** (`*.edge.sdk.awswaf.com`), es decir, protección anti-bots. Es un riesgo para ejecutar desde cloud o en modo headless. | ⚠️ |
+Leyenda: ✅ verificado con la sonda en este Skool · 🔶 inferencia razonable, aún no verificada · ❓ desconocido.
 
 ---
 
-## 1. Estructura
+## 1. Estructura detectada ✅
 
 ```
-Grupo Skool (/<grupo>)
-└─ Classroom (/<grupo>/classroom)                      → lista de cursos
-   └─ Curso      unitType "course"  (/<grupo>/classroom/<slug-curso>)
-      └─ Módulo  unitType "set"      (carpeta/sección)
-         └─ Lección unitType "module" (?md=<lessonId>)   ← ojo: Skool llama "module" a la lección
-            ├─ metadata.title / metadata.desc
-            ├─ Video: nativo (HLS firmado) | videoLink externo (YouTube/Vimeo/Loom/Wistia…)
-            │   ├─ variantes 1080p / 720p / 480p / 270p
-            │   ├─ audio separado
-            │   └─ subtítulos: subtitles.m3u8 → segmentos WebVTT
-            └─ Recursos/adjuntos: metadata.resources (JSON: archivo o enlace)
+Grupo "evolve-8484"
+└─ Classroom: 14 cursos                     pageProps.allCourses
+   └─ Curso      unitType "course"           /evolve-8484/classroom/<name: 8 hex>   (p. ej. fc758841)
+      └─ Módulo  unitType "set"              79 en total
+         └─ Lección unitType "module"        763 en total · /…/<curso>?md=<id: 32 hex>
+            ├─ metadata.title
+            ├─ metadata.desc                 formato Skool "[v2]" (solo 9 lecciones)
+            ├─ metadata.videoId              → video nativo Skool (Mux)
+            ├─ metadata.videoLink            → Loom / YouTube / Vimeo cuando es externo
+            ├─ metadata.videoLenMs, videoThumbnail
+            └─ metadata.resources            string JSON (casi siempre vacío)
+               Video nativo → master HLS en stream.video.skool.com (firmado, ~24 h)
+                  ├─ variantes (varían por video): 1080/720/480/270, 1080/480/270 o 1078/480/270
+                  ├─ audio separado (grupo AUDIO)
+                  └─ subtítulos "English CC" [en] → subtitles.m3u8 → N segmentos .vtt (WebVTT)
 ```
 
-| Punto | Estado | Detalle |
-|---|---|---|
-| Skool es una app Next.js que embebe los datos de la página en `<script id="__NEXT_DATA__">` | 🔶 | 🔍 `classroom.next_data_present`, `courses[].tree_json_path` |
-| El árbol del curso completo viene en `pageProps` de la página del curso (sin paginación) | 🔶 | 🔍 `courses[].counts` vs `order_check.dom_ids` |
-| Nodos con la forma `{ course: {id, name, unitType, metadata}, children: [...] }` | 🔶 | 🔍 `courses[].key_frequency` (claves reales por `unitType`, sin valores) |
-| `unitType`: `course` → `set` (módulo) → `module` (lección) | 🔶 | 🔍 `key_frequency` |
-| Lecciones sueltas directamente bajo el curso, sin módulo | 🔶 posible | La sonda las agrupa como "(lecciones sin módulo)" y conserva `course_position`. |
-| **Orden** = posición en el arreglo `children` | 🔶 | 🔍 `structure.order_fields_seen` (si aparece un campo `position`/`order`…) y `order_check.same_relative_order` (JSON vs sidebar del DOM) |
-| IDs: `id` hexadecimal de 32 caracteres (estable); el `name` del curso es el slug corto de la URL | 🔶 | 🔍 `samples[].lesson.id`, `courses[].course` |
-| URL estable de la lección: `/<grupo>/classroom/<slug>?md=<lessonId>` | 🔶 | 🔍 `samples[].lesson.title_visible_in_page` confirma que esa URL abre la lección correcta. |
-| Bloqueos por nivel o drip (`hasAccess`, `locked`, `minTier`…) | 🔶 | 🔍 `access_flags` por curso/módulo/lección |
+- **Fuente de verdad del contenido y del orden**: `__NEXT_DATA__ → props.pageProps.course` en la página de cada curso. Es un árbol `{ course: {...}, children: [...] }` con **todo** el curso en una sola carga, sin paginación.
+- **Orden**: no existe ningún campo `position` u `order`; el orden es **la posición en el arreglo `children`**. Se validó contra la barra lateral en los 14 cursos (`same_relative_order = true` en todos).
+- **Campos de cada nodo**: `id, name, unitType, parentId, rootId, groupId, userId, state, public, createdAt, updatedAt, metadata`. `parentId` y `rootId` permiten reconstruir el árbol sin depender del anidamiento.
+- **Cursos de un solo nivel**: `992407ee`, `02e27f05` y `70956291` no tienen `set`; sus lecciones cuelgan directamente del curso. El inventario los trata como un "módulo implícito".
+- **Control de acceso** (en metadata): `hasAccess`, `lockFreeTrial`, `privacy`, `minTier`, `minAccessLevel`, `dripConfig`/`dripDays`, y `amount`/`currency`/`billingProductId` en cursos de pago aparte.
+- La URL `/_next/data/<buildId>/…json` responde 200, pero **no** contiene el árbol. No sirve como API; hay que usar la página.
 
-**Fuente de verdad propuesta para el orden:** el JSON del árbol del curso que la propia página entrega (orden de `children`), **validado** contra el orden del sidebar del DOM. La sonda hace esa comparación automáticamente. No habrá que introducir el orden a mano si `same_relative_order = true` en todos los cursos.
+## 2. Ejemplo real (curso `fc758841` "👣 Evolve (Start Here)", 14 módulos / 177 lecciones)
 
-## 2. Información por lección
+**Módulo 1: 👋 Start Here**
+1. 🆕 Start Here: Overview Of Evolve · descripción: no · video: nativo (Mux) · HLS: sí, 1080/720/480/270 + audio · subtítulos: English (44 segmentos WebVTT) · archivos: 0
+2. 🆕 Win The $100k/Day Award · descripción: no · video: tiene `videoId` y `videoLink` · **HLS: no detectado** ❓ · archivos: 0
+3. 90 Seconds Tip to Hit $1m/Month · descripción: no · video: nativo · HLS: sí, 1080/480/270 · subtítulos: English (3) · archivos: 0
+4. 📌 100+ Winning Ads Document · descripción: no · video: nativo · HLS: sí, 1080/480/270 · subtítulos: English (20) · archivos: 0 · 1 enlace externo
+5. 📌 100+ Hook Templates (From Ads Doc) · descripción: no · video: nativo · HLS: sí, 1080/720/480/270 · subtítulos: English (5) · archivos: 0 · 1 enlace externo
 
-| Campo | Fuente probable | Estado |
-|---|---|---|
-| title | `metadata.title` | 🔶 / 🔍 |
-| description | `metadata.desc` (texto enriquecido; posiblemente un formato propio con prefijo `[v2]`, o markdown/HTML) | 🔶 · 🔍 `description.format`, `link_count`, `image_count` |
-| position | índice en `children` | 🔶 · 🔍 |
-| lesson_id / lesson_url | `id` / `?md=` | 🔶 · 🔍 |
-| video (externo) | `metadata.videoLink` | 🔶 · 🔍 `video.video_link_provider` |
-| video (nativo) | campo tipo `videoId`/`videoLenMs`/`videoThumbnail` + llamada adicional para la URL firmada | 🔶 · 🔍 `video.fields`, `hls.manifest_url_source` |
-| adjuntos | `metadata.resources` (string JSON con `title`, `file_id`/`file_name`/`file_content_type` o `link`) | 🔶 · 🔍 `attachments_in_tree`, `dom.file_links` |
-| imágenes | dentro de la descripción y como miniatura del video | 🔶 · 🔍 `description.image_count`, `dom.large_images` |
-| enlaces externos | descripción y recursos de tipo enlace | 🔍 `dom.external_links` |
+**Módulo 2: 🧠 Why Ads Work (Psychology)**
+1. Overview Of Psychology · video: nativo · HLS: 1078/480/270 · subtítulos: English (4)
+2. Market Desires · video: nativo · HLS: 1078/480/270 · subtítulos: English (35)
+3. Market Awareness · **descripción: sí** (formato `[v2]`, 414 caracteres, 2 enlaces) · video: nativo · HLS: 1078/480/270 · subtítulos: English (37)
+4. Understanding Unaware + Awareness Levels · **HLS: no detectado** ❓
+5. Market Sophistication · video: nativo · HLS: 1078/480/270 · subtítulos: English (39)
 
-Además, la sonda compara el JSON de la página de **cada lección** con el árbol del curso (`lesson_page_extra_metadata_keys`) para detectar si la lección trae campos que el árbol no incluye.
+Resultado de la muestra: **8 de 10 con HLS; los 8 tienen subtítulos English CC en WebVTT.**
 
-## 3. Videos
+## 3. Inventario global (14 cursos)
 
-| Pregunta | Estado |
+| Curso | Módulos | Lecciones | Nativo (`videoId`) | Loom | YouTube | Vimeo | Sin video en metadata | Nota |
+|---|---|---|---|---|---|---|---|---|
+| fc758841 Evolve (Start Here) | 14 | 177 | 130 | 4 | 1 | – | 42 | |
+| 9917539c Copywriting | 13 | 72 | 58 | 1 | – | – | 13 | |
+| cf68fcb8 Finance | 4 | 7 | 6 | 1 | – | – | – | |
+| 8327c8c9 Q4 (2026) | 2 | 24 | 14 | 6 | 1 | – | 3 | 15 lecciones con `lockFreeTrial` |
+| 67ce5630 Call Recordings | 4 | 124 | 22 | – | – | – | 102 | `dripConfig`: 102 lecciones solo con título → **drip, aún no liberadas** 🔶 |
+| 7eccf232 CRO | 9 | 120 | 10 | – | – | – | 110 | curso **de pago aparte** (`amount`); 110 solo con título y miniatura → **sin acceso** 🔶 |
+| 992407ee Supply Chain | 1 | 15 | 13 | – | – | – | 2 | |
+| 0d8aaebd Origins Program | 13 | 115 | 86 | – | 2 | 3 | 24 | |
+| 48adf39c Agency Edition | 1 | 17 | – | – | – | – | 17 | **de pago aparte**; solo título y miniatura → **sin acceso** 🔶 |
+| 894b4b75 Marrakesh 2026 | 2 | 7 | 6 | – | – | – | 1 | `minAccessLevel` |
+| 02e27f05 $100k/Day Podcast | 1 | 1 | 1 | – | – | – | – | |
+| 70956291 Mastermind Record | 1 | 1 | 1 | – | – | – | – | |
+| 6619b66c Archive | 8 | 50 | 45 | 4 | – | – | 1 | `minTier` |
+| 3992cc1b Evolve AI | 6 | 33 | 4 | – | – | – | 29 | 29 solo con título y miniatura → **sin acceso** 🔶 |
+| **Total** | **79** | **763** | **396** | **16** | **4** | **3** | **344** | |
+
+Lectura:
+- **~396 videos nativos de Skool** son los que realmente hay que migrar. De las 344 lecciones "sin video en metadata", unas **258** están bloqueadas para esta cuenta (drip, pago aparte o nivel) y el resto parecen ser de texto o recursos.
+- **23 videos externos** (Loom, YouTube, Vimeo): no están alojados en Skool. Cada uno requiere su propia decisión (enlazar o pedir el archivo original).
+- **Descripciones**: solo en 9 lecciones. **Adjuntos**: solo en 3 (`resources` existe en casi todas, pero vacío).
+
+## 4. Videos ✅
+
+| Pregunta | Respuesta |
 |---|---|
-| Video nativo servido por HLS: 1080p/720p/480p/270p, audio separado, subtítulos "English CC" en playlist aparte, URLs firmadas | ✅ **CONFIRMADO** (tu inspección manual de una clase) |
-| Esa escalera exacta (incluido el 270p) con audio y subtítulos como grupos separados coincide con la que genera **Mux**; las firmas suelen ser un JWT en `?token=` con `exp` | 🔶 hipótesis fuerte, no verificada · 🔍 `hls.master_host`, `master_signature.jwt:token.aud` (`"v"` sería típico de Mux) |
-| ¿El manifest aparece en el HTML inicial? | 🔍 `manifest_in_initial_html`, `media_refs_in_next_data` |
-| ¿Se obtiene con una llamada adicional a la API? | 🔍 `hls.manifest_url_source` (endpoint cuya respuesta contiene la URL del master) y `api_calls[].json_shape` |
-| ¿Hay un identificador estable del video? | 🔍 `master_path_id_hash` (hash del path; si se repite entre ejecuciones, el ID es estable) y `manifest_id_matches_metadata_keys` (qué campo de metadata contiene ese ID) |
-| ¿Cuánto viven las URLs firmadas? | 🔍 `master_signature.*.ttl_s` / `expires_in_s` |
-| ¿Hace falta sesión para leer el manifest una vez firmado? | 🔍 `master_status_without_cookies`: 200 significa que la URL firmada basta y un worker en cloud solo la necesita a ella; 401/403 significa que hacen falta cookies. |
-| ¿Hace falta pulsar play? | 🔍 `play_click` (`null` significa que el manifest se cargó solo) |
-| ¿Todos los videos son nativos? | 🔍 `courses[].counts.video_providers` sobre **todas** las lecciones |
+| Proveedor | **Mux**, detrás de dominios de Skool: etiqueta `<mux-player>`, analítica `inferred.litix.io` (Mux Data), master en `stream.video.skool.com/<playbackId>.m3u8`, renditions en `manifest-*.fastly.video.skool.com` y segmentos en `chunk-*.fastly.video.skool.com`. |
+| ¿Aparece en el HTML o en el JSON? | El `videoId` sí está en el JSON. La URL del master **no** aparece literal en ninguna respuesta capturada. ❓ Falta saber si el `playbackId` o el token vienen en el HTML en otro formato; la sonda v3 lo mide. |
+| ¿Requiere interacción? | **Sí**: el reproductor solo pide el manifest tras hacer clic en la miniatura. |
+| ¿Hay un ID estable? | El `playbackId` en el path del master es estable por video (según el modelo de Mux) 🔶. Falta confirmar si coincide con `metadata.videoId`. |
+| Firma | `?token=<JWT>` con claims `aud="v"`, `sub`, `exp`, `kid` y **`playback_restriction_id`**. |
+| Duración de la URL firmada | **~24 h** (`exp` ≈ 86 000–87 700 s tras cargar la página). |
+| ¿Funciona sin la sesión? | **No con una petición "desnuda": 403.** El claim `playback_restriction_id` indica restricciones de reproducción de Mux (típicamente por dominio de origen o por user agent) 🔶. La v3 de la sonda distingue el caso sin cookies, sin cookies con Referer de skool.com, y con sesión. |
+| Calidades | Varían por video (`1080/720/480/270`, `1080/480/270`, `1078/480/270`); se guardan por video. |
+| CDN | Varias regiones y proveedores (`oci-us-phoenix`, `oci-us-ashburn`, `gcp-us-east1`). No se debe fijar ningún host. |
 
-## 4. Subtítulos
+## 5. Subtítulos ✅
 
-| Pregunta | Estado |
-|---|---|
-| Referencia a `subtitles.m3u8` como `#EXT-X-MEDIA:TYPE=SUBTITLES` dentro del master | ✅ confirmado en una clase · 🔍 en cada lección de la muestra |
-| Idiomas | 🔍 `hls.subtitles[].language` / `name` (`DEFAULT`, `AUTOSELECT`, `FORCED` y `CHARACTERISTICS` también se registran) |
-| ¿Se obtienen sin descargar el video? | Sí, son playlists independientes. 🔍 `subtitles[].playlist_status`, `segments.segment_count` |
-| Formato final | 🔶 WebVTT · 🔍 `first_segment_check.is_webvtt`, `has_timestamp_map` |
-| Subtítulos CEA-608 incrustados en el video | 🔍 `closed_captions_608` (si existieran, no se podrían extraer sin procesar el video) |
-| ¿Se pueden guardar como archivo en Supabase Storage? | Sí. Se concatenan los segmentos `.vtt` en un solo archivo por idioma, se normalizan con `X-TIMESTAMP-MAP` y se guardan como `lessons/<id>/subtitles/<lang>.vtt`. Nuestro reproductor los carga con `<track kind="subtitles">` o como pista del HLS, y así se puede activar o desactivar el CC. |
+- Declarados en el master como `#EXT-X-MEDIA:TYPE=SUBTITLES,NAME="English CC",LANGUAGE="en"`, en su propia playlist (`subtitles.m3u8`).
+- Idioma: **solo inglés** en los 8 videos de la muestra.
+- La playlist tiene **3 a 44 segmentos `.vtt`**; el primero se verificó como **WebVTT** sin tocar el video.
+- Se obtienen **sin descargar video** y con el mismo token del master.
+- Almacenamiento: concatenar los segmentos en **un único `en.vtt` por lección**, respetando `X-TIMESTAMP-MAP`, y guardarlo en Supabase Storage (`lessons/<lessonId>/subtitles/en.vtt`). Nuestro reproductor lo carga como `<track kind="subtitles" srclang="en">`, lo que permite activar o desactivar el CC.
+- ❓ No sabemos si **todos** los ~396 videos tienen subtítulos. Una pasada de "solo manifests" lo cuantifica.
 
-## 5. Documentos y archivos
+## 6. Documentos y archivos
 
-🔶 Las lecciones de Skool pueden tener "recursos" de dos tipos: **archivo subido** (PDF, ZIP, imágenes, documentos) y **enlace**. La sonda:
+- ✅ `metadata.resources` existe en la mayoría de las lecciones, pero **solo 3 lo tienen con contenido**.
+- ✅ En la muestra no hubo enlaces a archivos en el DOM. Hay enlaces externos en algunas lecciones y dentro de las descripciones `[v2]`.
+- ❓ Falta ver la forma exacta de los 3 recursos y cómo se obtiene su URL de descarga. La corrida `--smart` los incluye.
+- Imágenes: portada de cada curso (`coverImage`/`coverImageFile`) y miniatura de cada lección (`videoThumbnail`).
 
-- lee `metadata.resources` (o cualquier clave `resource|attach|file|download`) y registra título, tipo, nombre de archivo, content-type y host (🔍 `attachments_in_tree`);
-- escanea el DOM de la lección en busca de enlaces a archivos (`download`, extensiones `.pdf/.zip/.docx/…`) y enlaces externos (🔍 `dom.file_links`, `dom.external_links`);
-- **no** descarga nada. Pendiente: si los archivos subidos se resuelven con otra llamada firmada (p. ej. `file_id` → URL temporal). Se verá en `api_calls` al abrir una lección con adjuntos.
+## 7. Autenticación ✅ (solo nombres y atributos)
 
-## 6. Autenticación
+| Cookie | Tipo | Caducidad | Papel |
+|---|---|---|---|
+| `auth_token` | HttpOnly, JWT, `.skool.com` | **365 días** | sesión de Skool |
+| `aws-waf-token` | `.skool.com` | **4 días** | token del **AWS WAF** (anti-bots); se obtiene ejecutando el JavaScript del WAF |
+| `AWSALB*` | `www.skool.com` | 7 días | afinidad del balanceador de carga |
+| `client_id`, `locale` | `.skool.com` | 365 días | identificador de cliente e idioma |
 
-| Pregunta | Estado |
-|---|---|
-| ¿Depende de cookies? | 🔶 Sí: cookie de sesión HttpOnly en `.skool.com`, probablemente un JWT · 🔍 `auth.cookies` (solo nombre, flags, caducidad y si parece JWT) |
-| ¿Hay tokens o headers extra en las APIs? | 🔍 `network-summary.json → request_header_names` (solo nombres: `cookie`, `authorization`, `x-…`) |
-| ¿Hay un endpoint JSON aprovechable sin navegador? | 🔍 `next_data_endpoint`: prueba `/_next/data/<buildId>/…json` con sesión y sin cookies |
-| ¿El proceso puede correr en cloud? | Probablemente sí, con una sesión exportada (ver §8). El login en sí no se automatiza: puede haber código por email o captcha, y no los vamos a evadir. |
+Implicaciones para un proceso en cloud:
+- La sesión en sí dura mucho (365 días), así que un login manual único es viable.
+- **AWS WAF** exige un navegador real que ejecute su JavaScript cada pocos días. Además, puede bloquear IPs de datacenter. No lo vamos a evadir. Si bloquea al servidor, la parte que usa la sesión (descubrimiento y obtención de manifests) se ejecuta en una máquina del usuario.
+- Las URLs firmadas duran ~24 h, pero tienen restricciones de reproducción: está por confirmar si un worker en otro servidor puede usarlas.
 
 ---
 
-## 7. Esquema conceptual de inventario (no son tablas definitivas)
+## 8. Esquema conceptual de inventario (no son tablas definitivas)
 
 ```
-course         id, slug, title, description, cover_image, source_group, access_flags, position
-module         id, course_id, position, title, access_flags
-lesson         id, module_id, course_id, position, title, description_raw, description_format,
-               lesson_url, access_flags, source_metadata_keys[]
-video          lesson_id, provider (skool-native|youtube|vimeo|loom|wistia|…),
-               source_video_id (estable), external_url (si es externo), duration_ms, thumbnail_url,
-               available_qualities[], has_separate_audio, manifest_source_endpoint,
-               signed_url_ttl_s, status (discovered|processing|stored|failed), checksum, storage_path
-subtitle_track lesson_id, language, name, is_default, is_autoselect, is_forced, format (webvtt),
-               segment_count, duration_s, storage_path, status
-attachment     lesson_id, kind (file|link), title, file_name, content_type, source_file_id,
-               external_url, size_bytes (cuando se conozca), storage_path, status
-asset          lesson_id, kind (image|thumbnail), source_url_redacted, storage_path, status
-audit_run      id, started_at, tool_version, counts, safety (media_bytes_received), notes
+course         skool_id, slug(name), title, desc_raw, cover_image, access{privacy,minTier,amount…}, position
+module         skool_id, course_id, parent_id, position, title, access{hasAccess,lockFreeTrial}, is_implicit
+lesson         skool_id, module_id, course_id, position, title, desc_raw, desc_format("v2"),
+               lesson_url, access{hasAccess,lockFreeTrial,drip}, accessible(bool), created_at, updated_at
+video          lesson_id, provider(skool-mux|loom|youtube|vimeo), skool_video_id, playback_id,
+               external_url, duration_ms, thumbnail_url, qualities[], has_separate_audio,
+               status(discovered|resolved|processing|stored|failed|skipped), storage_path, checksum
+subtitle_track lesson_id, language("en"), name("English CC"), default, autoselect,
+               segment_count, format("webvtt"), storage_path, status
+attachment     lesson_id, kind(file|link), title, file_name, content_type, source_file_id,
+               external_url, size_bytes, storage_path, status
+audit_run      id, run_at, tool_version, totals, media_bytes_received
 ```
 
-Principios: los IDs de Skool se usan como claves de idempotencia, `position` se guarda explícitamente, cada pieza tiene su propio `status` para reintentar, y nunca se persisten URLs firmadas.
+Reglas: los IDs de Skool son la clave de idempotencia; `position` se guarda siempre de forma explícita; **nunca** se persisten tokens ni URLs firmadas; las lecciones no accesibles se registran con `accessible = false` y no se migran.
 
-## 8. Flujo técnico propuesto (solo arquitectura)
+## 9. Flujo técnico propuesto (solo arquitectura)
 
 ```
-[1] Sesión autorizada
-    Login manual una vez (navegador local) → exportar storageState de Playwright
-    → guardarlo cifrado como secreto del worker (nunca en el repo) → caduca y se renueva a mano.
-[2] Descubrimiento (barato; sin video)
-    Por curso: cargar página → JSON del árbol → course/module/lesson + position
-    → validar orden contra el DOM → upsert en inventario (status = discovered).
-[3] Metadata por lección
-    Abrir ?md=<id> → descripción, recursos, proveedor de video, ID estable del video.
-[4] Resolver manifest (justo antes de procesar)
-    Llamar al mismo endpoint que usa la página → URL firmada fresca (TTL medido por la sonda).
-[5] Procesar video (por lección; fuera del Mac)
-    ffmpeg -i master.m3u8 -map de la variante elegida (p. ej. 1080p + audio) -c copy → MP4,
-    o conservar HLS (todas las variantes) según cómo queramos servirlo.
-    Directorio temporal por lección; ejecución en worker con disco efímero.
-[6] Subtítulos
-    subtitles.m3u8 → concatenar segmentos .vtt → <lang>.vtt único → validar (WEBVTT, nº de cues, duración ≈ video).
-[7] Subir a Supabase Storage
-    lessons/<lessonId>/video/…, lessons/<lessonId>/subtitles/<lang>.vtt, lessons/<lessonId>/files/…
-[8] Guardar metadata en Supabase (status = stored, checksum, duración, tamaño)
-[9] Verificar
-    Duración del video ≈ videoLenMs, variantes presentes, VTT parseable, adjuntos con tamaño > 0, conteos vs inventario.
-[10] Limpiar el temporal y marcar la lección como completa. Reanudable por lección.
+[A] Máquina con sesión (el Mac del usuario, o un host propio si el WAF lo permite)
+    1. Playwright con perfil persistente (login manual una vez).
+    2. Descubrimiento: 14 páginas de curso → árbol JSON → upsert en course/module/lesson.
+    3. Por cada lección accesible con videoId: abrir ?md=, clic en la miniatura,
+       capturar el master, las calidades y los subtítulos (sin segmentos) → video/subtitle_track.
+       Ritmo humano (~15 s por lección; ~400 lecciones ≈ 1,5–2 h).
+[B] Procesamiento (dónde depende de la prueba de restricciones de reproducción, ver §10)
+    4. Resolver una URL firmada fresca (TTL ~24 h) justo antes de procesar.
+    5. ffmpeg: master → mejor variante + audio → MP4 (remux -c copy, sin recodificar), en un temporal.
+    6. Subtítulos: segmentos .vtt → un solo en.vtt validado.
+    7. Subir a Supabase Storage: lessons/<id>/video.mp4, lessons/<id>/subtitles/en.vtt, files/…
+    8. Guardar metadata y checksums; status = stored.
+    9. Verificar: duración ≈ videoLenMs, VTT parseable, conteos iguales al inventario.
+   10. Borrar el temporal. Reanudable por lección.
 ```
 
-Decisión pendiente para el paso [5] o [7]: **Supabase Storage no transcodifica ni es un CDN de video**. Servir HLS desde Storage exige firmar muchos segmentos pequeños, y servir un MP4 grande obliga a revisar el límite de tamaño por archivo del plan. Hay que decidir entre MP4 progresivo en Storage o HLS en Storage/otro servicio de video, antes de construir el migrador.
+Decisión pendiente: **Supabase Storage no es una plataforma de video** (no transcodifica ni sirve HLS de forma nativa). Para ~396 videos hay que elegir entre MP4 progresivo en Storage (y revisar el límite de tamaño por archivo del plan) o un servicio de video para servirlos.
 
-## 9. Riesgos e incógnitas
+## 10. Riesgos e incógnitas
 
-1. **Nada de este curso está verificado todavía, salvo tu inspección manual.** Toda la estructura de §1 es hipótesis hasta ejecutar la sonda.
-2. **Mezcla de proveedores**: algunas lecciones pueden usar YouTube, Vimeo, Loom o Wistia en lugar de video nativo. Cada una exige otro tratamiento (y otros derechos).
-3. **Lecciones sin video** (solo texto o recursos) y **lecciones sin subtítulos**: la sonda da conteos, pero los subtítulos solo se ven al abrir cada lección. Hacerlo para las ~500 exige una pasada de "solo manifests", que es barata porque no descarga video.
-4. **Idiomas**: se confirmó English CC en una clase; no sabemos si hay otros idiomas ni si todos los videos tienen subtítulos.
-5. **Paginación o carga perezosa**: si un curso muy grande no trae el árbol completo en el JSON inicial, lo detectaremos con `order_check.dom_ids` ≠ número de lecciones en JSON.
-6. **Drip o niveles**: algunas lecciones pueden estar bloqueadas para tu cuenta. La migración solo cubre lo que tu cuenta ve legítimamente.
-7. **Caducidad de URLs firmadas**: por eso el manifest debe resolverse justo antes de procesar cada video.
-8. **Sesión desde cloud**: la cookie puede caducar, invalidarse por IP o dispositivo, o exigir revalidación. Hay que medir la caducidad (`auth.cookies[].expires_in_days`) y probar si una sesión exportada funciona desde otra IP.
-9. **Rate limiting o detección de automatización** en Skool: el ritmo debe ser humano y secuencial.
-10. **Formato del texto enriquecido** de las descripciones: hará falta un conversor a HTML o Markdown para nuestra app.
-11. **Adjuntos subidos**: aún no sabemos si se resuelven con una URL firmada adicional.
-12. **Legal / Términos de Skool**: tener acceso como alumno no equivale automáticamente a tener derecho a extraer y rehospedar el contenido. Conviene tener por escrito la autorización del propietario del curso antes de la etapa de migración.
-13. **Selectores del DOM** (botón de play, sidebar): son heurísticos y pueden cambiar. La fuente principal debe ser el JSON, no el DOM.
+1. ❓ **Restricciones de reproducción de Mux** (`playback_restriction_id` y el 403 fuera del navegador). Es la incógnita que más condiciona la arquitectura. Si solo funcionan desde el navegador de la sesión, el procesamiento debe hacerse en esa misma máquina o en ese mismo contexto de navegador.
+2. ⚠️ **AWS WAF**: riesgo de bloqueo desde cloud o headless. No se evade; si bloquea, el paso [A] se queda en local.
+3. ❓ **2 de 10 lecciones sin HLS** (1.2 y 2.4) aunque tienen `videoId`. La v3 reintenta el clic y guarda una captura local de la pantalla.
+4. ❓ Cobertura de subtítulos e idiomas en los ~396 videos (solo tenemos la muestra de 8).
+5. ❓ Formato y descarga de los 3 adjuntos.
+6. ❓ Convertir las descripciones `[v2]` a HTML o Markdown.
+7. 🔶 **258 lecciones no accesibles** para esta cuenta (drip, cursos de pago aparte, niveles). No se migran; si hacen falta, se necesita el acceso correspondiente o el material del propietario.
+8. **Videos externos** (Loom ×16, YouTube ×4, Vimeo ×3): otro tratamiento y otros derechos.
+9. **Legal**: "tengo acceso" como alumno no implica derecho a descargar y rehospedar. Hace falta **autorización escrita del propietario del curso**. La alternativa más limpia es que el propietario exporte los originales desde su panel o su cuenta de Mux, lo que evitaría los puntos 1 y 2.
 
-## 10. Conclusión
+## 11. Conclusión
 
-| # | Pregunta | Respuesta basada en la evidencia disponible |
+| # | Pregunta | Respuesta |
 |---|---|---|
-| 1 | ¿Detectar automáticamente el primer módulo? | **Muy probablemente sí** (primer `set` del árbol JSON). Pendiente de confirmar con la sonda (`structure.modules[0]`). |
-| 2 | ¿Detectar automáticamente la primera lección? | **Muy probablemente sí** (primer hijo del primer módulo; URL `?md=<id>`). La sonda confirma que esa URL abre la lección (`title_visible_in_page`). |
-| 3 | ¿Orden completo automático? | **Probable**: orden de `children` validado contra el sidebar. Se confirma cuando `same_relative_order = true` y `dom_ids_in_json = dom_ids` en todos los cursos. |
-| 4 | ¿Detectar videos automáticamente? | **Sí para detectar y clasificar** (metadata + manifest capturado de la red). ✅ HLS nativo confirmado en una clase. Falta saber qué endpoint entrega la URL firmada y si todas las lecciones usan el mismo sistema. |
-| 5 | ¿Detectar subtítulos automáticamente? | **Sí, si el video es HLS nativo**: vienen declarados en el master (`TYPE=SUBTITLES`) y se pueden leer sin tocar el video. Falta saber cuántos videos los tienen y en qué idiomas. |
-| 6 | ¿Detectar documentos o archivos automáticamente? | **Probable** (metadata de recursos + DOM). Falta ver cómo se resuelve la URL de descarga de un archivo subido. |
-| 7 | ¿Qué falta investigar? | Ejecutar la sonda en este curso y revisar: la forma real del JSON, el endpoint del manifest, el TTL de las firmas, si el manifest funciona sin cookies, los proveedores de video, los idiomas de subtítulos, cómo se resuelven los adjuntos, la caducidad de la sesión y el formato de las descripciones. Después, una pasada de **solo manifests** sobre las ~500 lecciones para tener conteos exactos de video, subtítulos e idiomas. Y confirmar la autorización del propietario del curso. |
-| 8 | ¿Siguiente paso técnico? | **Ejecutar `tools/skool-audit` en tu Mac** (ver su README), empezando por `--modules 2 --lessons 5`, y compartir `out/report.md` y `out/inventory.json`. No contienen secretos, pero sí títulos del curso. Con eso reescribo este documento con evidencia real y un ejemplo real, y decidimos el esquema definitivo y la estrategia de almacenamiento de video. |
+| 1 | ¿Primer módulo automático? | **Sí** ✅: primer `set` de `pageProps.course.children` (por ejemplo, "👋 Start Here"). |
+| 2 | ¿Primera lección automática? | **Sí** ✅: primer hijo del primer módulo, con URL `?md=<id>` (por ejemplo, "🆕 Start Here: Overview Of Evolve"). |
+| 3 | ¿Orden completo automático? | **Sí** ✅: orden de `children`, validado contra la barra lateral en los 14 cursos. |
+| 4 | ¿Videos automáticos? | **Sí** ✅: `videoId` en el JSON y master HLS (Mux) capturado al pulsar play, con calidades por video. Falta explicar 2 lecciones sin HLS. |
+| 5 | ¿Subtítulos automáticos? | **Sí** ✅: `TYPE=SUBTITLES` en el master → segmentos WebVTT legibles sin tocar el video. Inglés en toda la muestra. |
+| 6 | ¿Documentos o archivos automáticos? | **Parcial**: se detectan (`resources`, 3 lecciones), pero falta ver cómo se descargan. |
+| 7 | ¿Qué falta? | (a) Qué exigen las restricciones de reproducción de Mux; (b) de dónde sale el token; (c) las 2 lecciones sin HLS; (d) los 3 adjuntos; (e) la cobertura de subtítulos en todos los videos; (f) la autorización del propietario; (g) la decisión de almacenamiento o servicio de video. |
+| 8 | ¿Siguiente paso? | Ejecutar la sonda v3: `node audit.mjs --url https://www.skool.com/evolve-8484/classroom --smart`. Resuelve (a)–(d). Después, si todo cuadra, una pasada de **solo manifests** sobre los ~396 videos nativos, sin descargar nada, para cerrar (e) y tener el inventario completo antes de escribir el migrador. |

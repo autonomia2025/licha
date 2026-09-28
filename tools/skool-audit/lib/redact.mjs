@@ -28,6 +28,8 @@ export function pathPattern(raw) {
       .split('/')
       .map((seg) => {
         if (!seg) return seg;
+        const ext = seg.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? '';
+        if (ext && /^[A-Za-z0-9_-]{20,}$/.test(seg.slice(0, -ext.length))) return `:token${ext}`;
         if (/^[0-9a-f]{32}$/i.test(seg)) return ':hex32';
         if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(seg)) return ':uuid';
         if (/^\d+$/.test(seg)) return ':n';
