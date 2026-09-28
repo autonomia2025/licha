@@ -45,7 +45,7 @@ export function CourseCover({ course, src, className = "", large = false }: { co
 }
 
 /** Miniatura de lección con duración; si no hay imagen, un degradado con el número de clase. */
-export function LessonThumb({ lesson, src, className = "", icon = true }: { lesson: Lesson; src?: string; className?: string; icon?: boolean }) {
+export function LessonThumb({ lesson, src, className = "", icon = true, progress }: { lesson: Lesson; src?: string; className?: string; icon?: boolean; progress?: number }) {
   return (
     <div className={`relative aspect-video overflow-hidden rounded-lg bg-surface-2 ${className}`} style={src ? undefined : { background: gradientFor(lesson.moduleId) }}>
       {src ? (
@@ -58,6 +58,11 @@ export function LessonThumb({ lesson, src, className = "", icon = true }: { less
       ) : null}
       {lesson.durationMs ? (
         <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/75 px-1.5 py-0.5 font-mono text-[11px] font-medium text-white">{formatClock(lesson.durationMs)}</span>
+      ) : null}
+      {progress && progress > 0 ? (
+        <span className="absolute inset-x-0 bottom-0 h-1 bg-black/50" aria-label={`Visto ${Math.round(progress)}%`}>
+          <span className="block h-full bg-accent" style={{ width: `${Math.min(100, progress)}%` }} />
+        </span>
       ) : null}
     </div>
   );

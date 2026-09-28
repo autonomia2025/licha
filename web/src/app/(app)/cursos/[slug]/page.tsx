@@ -115,7 +115,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                           className={`flex items-center gap-4 px-5 py-3.5 transition hover:bg-surface-2 ${isNext ? "bg-accent-soft/60" : ""}`}
                         >
                           <DoneBadge entry={entry} />
-                          <LessonThumb lesson={l} src={l.thumbnailPath ? signed[l.thumbnailPath] : undefined} className="hidden w-28 shrink-0 sm:block" />
+                          <LessonThumb lesson={l} src={l.thumbnailPath ? signed[l.thumbnailPath] : undefined} progress={!entry?.completed && entry?.positionS && l.durationMs ? (entry.positionS * 100000) / l.durationMs : undefined} className="hidden w-28 shrink-0 sm:block" />
                           <div className="min-w-0 flex-1">
                             <p className={`line-clamp-2 text-[15px] leading-snug ${entry?.completed ? "text-muted" : "text-ink"}`}>
                               <span className="mr-2 font-mono text-xs text-subtle">{String(l.number).padStart(2, "0")}</span>

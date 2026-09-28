@@ -73,3 +73,22 @@ export async function setCompleted(lessonId: string, completed: boolean, path: s
   }
   revalidatePath(path);
 }
+
+/** Guarda una nota del alumno (opcionalmente en un segundo del video). En demo no se persiste. */
+export async function addNote(lessonId: string, body: string, atS: number | null): Promise<import("@/lib/types").Note | null> {
+  const text = body.trim().slice(0, 4000);
+  if (!text) return null;
+  const at = atS === null ? null : Math.max(0, Math.round(atS));
+  if (isDemo) return { id: `demo-${Date.now()}`, atS: at, body: text, createdAt: new Date().toISOString() };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("lesson_notes").insert({ lesson_id: lessonId, body: text, at_s: at }).select("id,at_s,body,created_at").single();
+  if (error || !data) return null;
+  return { id: data.id, atS: data.at_s, body: data.body, createdAt: data.created_at };
+}
+
+export async function deleteNote(id: string): Promise<boolean> {
+  if (isDemo || id.startsWith("demo-")) return true;
+  const supabase = await createClient();
+  const { error } = await supabase.from("lesson_notes").delete().eq("id", id);
+  return !error;
+}

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
 import { Logo } from "./ui";
 import { NavLinks } from "./NavLinks";
 import { UserMenu } from "./UserMenu";
+import { CommandPalette, type PaletteItem } from "./CommandPalette";
 import type { Viewer } from "@/lib/types";
 
-export function AppHeader({ viewer, demo }: { viewer: Viewer; demo: boolean }) {
+export function AppHeader({ viewer, demo, items }: { viewer: Viewer; demo: boolean; items: PaletteItem[] }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-bg/80 backdrop-blur-xl">
       {demo ? (
@@ -18,19 +18,7 @@ export function AppHeader({ viewer, demo }: { viewer: Viewer; demo: boolean }) {
           <Logo />
         </Link>
         <NavLinks />
-        <form action="/buscar" className="relative ml-auto hidden w-full max-w-xs md:block" role="search">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
-          <input
-            name="q"
-            type="search"
-            placeholder="Buscar clases…"
-            aria-label="Buscar clases"
-            className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-subtle outline-none transition focus:border-accent/60 focus:bg-surface-2"
-          />
-        </form>
-        <Link href="/buscar" className="ml-auto grid size-10 place-items-center rounded-xl border border-line text-muted md:hidden" aria-label="Buscar">
-          <Search className="size-4" />
-        </Link>
+        <CommandPalette items={items} />
         <UserMenu viewer={viewer} />
       </div>
     </header>

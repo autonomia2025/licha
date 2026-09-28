@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { Logo } from "@/components/ui";
-import { getViewer, hasAccess, isDemo } from "@/lib/data";
+import { getLibrary, getViewer, hasAccess, isDemo } from "@/lib/data";
+import { splitEmoji } from "@/lib/format";
 import { signOut } from "@/app/actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -25,9 +26,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     );
   }
 
+  const library = await getLibrary();
+  const items = library.flatMap((c) =>
+    c.modules.flatMap((m) =>
+      m.lessons.map((l) => ({ id: l.id, title: l.title, original: l.originalTitle, course: splitEmoji(c.title).text, href: `/cursos/${c.slug}/${l.id}`, number: l.number, kind: l.kind })),
+    ),
+  );
+
   return (
     <>
-      <AppHeader viewer={viewer} demo={isDemo} />
+      <AppHeader viewer={viewer} demo={isDemo} items={items} />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-line/60 py-8 text-center text-xs text-subtle">© {new Date().getFullYear()} Evolve · Área de alumnos</footer>
     </>

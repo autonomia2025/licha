@@ -113,7 +113,18 @@ export async function getLessonDetail(slug: string, lessonId: string): Promise<L
   const lessonModule = course.modules.find((m) => m.id === lesson.moduleId)!;
 
   if (isDemo) {
-    return { lesson, course, module: lessonModule, bodyRaw: demoBodies[lesson.id] ?? null, videoPath: null, subtitles: [], attachments: [], prev: list[i - 1] ?? null, next: list[i + 1] ?? null };
+    const v = demoVideos.find((x) => x.lesson_id === lesson.id && x.status === "stored");
+    return {
+      lesson,
+      course,
+      module: lessonModule,
+      bodyRaw: demoBodies[lesson.id] ?? null,
+      videoPath: v?.storage_path ?? null,
+      subtitles: v ? [{ language: "en", label: "English CC", path: "/demo/clase-demo.vtt", isDefault: false }] : [],
+      attachments: [],
+      prev: list[i - 1] ?? null,
+      next: list[i + 1] ?? null,
+    };
   }
   const supabase = await createClient();
   const [body, video, subs, files] = await Promise.all([
@@ -193,8 +204,25 @@ export async function searchLessons(q: string) {
 /** URLs firmadas (1 h) para rutas del bucket privado. En demo devuelve un objeto vacío. */
 export async function signPaths(paths: (string | null | undefined)[]): Promise<Record<string, string>> {
   const unique = [...new Set(paths.filter((p): p is string => Boolean(p)))];
-  if (isDemo || !unique.length) return {};
+  if (isDemo) return Object.fromEntries(unique.filter((p) => p.startsWith("/demo/")).map((p) => [p, p]));
+  if (!unique.length) return {};
   const supabase = await createClient();
   const { data } = await supabase.storage.from(BUCKET).createSignedUrls(unique, 3600);
   return Object.fromEntries((data ?? []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl] as [string, string]] : [])));
+}
+
+// ------------------------------------------------------------------ notas
+
+export async function getNotes(lessonId: string): Promise<import("./types").Note[]> {
+  if (isDemo) {
+    return lessonId === "c-start-m2-l3"
+      ? [
+          { id: "demo-1", atS: 95, body: "Los 5 niveles de conciencia: unaware → most aware. Adaptar el gancho a cada uno.", createdAt: "2026-09-27T21:00:00Z" },
+          { id: "demo-2", atS: 312, body: "Probar un anuncio 'problem aware' para el producto nuevo.", createdAt: "2026-09-27T21:05:00Z" },
+        ]
+      : [];
+  }
+  const supabase = await createClient();
+  const { data } = await supabase.from("lesson_notes").select("id,at_s,body,created_at").eq("lesson_id", lessonId).order("created_at");
+  return (data ?? []).map((n) => ({ id: n.id, atS: n.at_s, body: n.body, createdAt: n.created_at }));
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Clock, Flame, Play } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Clock, Play } from "lucide-react";
+import { ActivityCard } from "@/components/Activity";
 import { CourseCard, LessonThumb, ProgressBar, StatusChip } from "@/components/ui";
 import { allLessons, courseProgress, getContinue, getLibrary, getProgress, getViewer, signPaths } from "@/lib/data";
 import { formatClock, formatDuration, greeting, splitEmoji } from "@/lib/format";
@@ -34,7 +35,7 @@ export default async function HomePage() {
             className="group card relative grid overflow-hidden transition hover:border-line-strong md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
           >
             <div className="relative">
-              <LessonThumb lesson={cont.lesson} src={cont.lesson.thumbnailPath ? signed[cont.lesson.thumbnailPath] : undefined} className="rounded-none md:h-full md:aspect-auto md:min-h-72" />
+              <LessonThumb lesson={cont.lesson} src={cont.lesson.thumbnailPath ? signed[cont.lesson.thumbnailPath] : undefined} progress={cont.positionS && cont.lesson.durationMs ? (cont.positionS * 100000) / cont.lesson.durationMs : undefined} className="rounded-none md:h-full md:aspect-auto md:min-h-72" />
               <div className="absolute inset-0 grid place-items-center bg-black/10 transition group-hover:bg-black/30">
                 <span className="grid size-16 place-items-center rounded-full bg-white/95 text-bg shadow-2xl transition group-hover:scale-105">
                   <Play className="ml-1 size-7 fill-current" aria-hidden />
@@ -75,10 +76,14 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 animate-fade-up [animation-delay:120ms]">
+      <section className="mt-6 animate-fade-up [animation-delay:120ms]">
+        <ActivityCard progress={progress} />
+      </section>
+
+      <section className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat icon={<CheckCircle2 className="size-5" />} label="Clases completadas" value={`${completed.length}`} hint={`de ${lessons.length}`} />
-        <Stat icon={<Clock className="size-5" />} label="Tiempo de estudio" value={formatDuration(watchedMs) || "0 min"} hint="en clases completadas" />
-        <Stat icon={<Flame className="size-5" />} label="Cursos en progreso" value={`${inProgress}`} hint={`de ${library.length} disponibles`} />
+        <Stat icon={<Clock className="size-5" />} label="Tiempo de estudio" value={formatDuration(watchedMs) || "0 min"} hint="" />
+        <Stat icon={<BookOpen className="size-5" />} label="Cursos en progreso" value={`${inProgress}`} hint={`de ${library.length}`} />
       </section>
 
       <section className="mt-14">
@@ -103,8 +108,8 @@ export default async function HomePage() {
 
 function Stat({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint: string }) {
   return (
-    <div className="card flex items-center gap-4 p-5">
-      <span className="grid size-11 place-items-center rounded-xl bg-accent-soft text-accent-strong">{icon}</span>
+    <div className="card flex items-center gap-4 p-4 sm:p-5 [&:last-child]:col-span-2 sm:[&:last-child]:col-span-1">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-strong">{icon}</span>
       <div>
         <p className="text-xs font-medium text-muted">{label}</p>
         <p className="mt-0.5 text-xl font-semibold tabular-nums">

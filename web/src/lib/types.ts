@@ -62,3 +62,10 @@ export interface Viewer {
   email: string;
   name: string;
 }
+
+export interface Note {
+  id: string;
+  atS: number | null;
+  body: string;
+  createdAt: string;
+}

@@ -17,6 +17,17 @@ con la marca Evolve, reproductor con subtítulos (CC), progreso por alumno y bú
 Las clases cuyo video aún no se migró muestran **"Próximamente"** con su texto disponible, así la app se puede
 publicar mientras los videos se suben por partes.
 
+## Funciones para el alumno
+
+- **Transcripción interactiva**: el texto del video (desde los subtítulos) se resalta mientras avanza, se puede buscar y, al hacer clic en una frase, el video salta a ese momento.
+- **Mis notas**: notas personales ancladas al minuto del video (clic para volver a ese punto). Solo las ve su autor.
+- **Reproductor pro**: velocidad 0,75x–2x (se recuerda), modo cine, reanuda donde quedaste, pasa sola a la siguiente clase (cuenta regresiva de 8 s) y atajos: Espacio/K, ←/→, J/L, C (subtítulos), < > (velocidad), T (cine), F, M, N y ? (ayuda).
+- **Búsqueda ⌘K / Ctrl+K** (o `/`) en todas las clases, sin tildes y en cualquier orden de palabras.
+- **Racha, mapa de actividad (26 semanas) y meta semanal** de 5 clases en el inicio.
+- Barra de "a medio ver" en miniaturas y **confeti** al completar un curso.
+
+En modo demo, la clase "Nivel de conciencia del mercado" trae un video y subtítulos de ejemplo (`public/demo/`) para probar todo esto.
+
 ## Correr en local
 
 ```bash

@@ -151,7 +151,10 @@ plan.forEach((c, ci) => {
         thumbnail_path: null,
         accessible: true,
       });
-      if (kind === "video") demoVideos.push({ lesson_id: id, status: "discovered", provider: "skool-mux", external_url: null, storage_path: null });
+      // Una clase de ejemplo con video real (público, en /public/demo) para probar el reproductor.
+      const demoVideo = id === "c-start-m2-l3";
+      if (kind === "video")
+        demoVideos.push({ lesson_id: id, status: demoVideo ? "stored" : "discovered", provider: "skool-mux", external_url: null, storage_path: demoVideo ? "/demo/clase-demo.mp4" : null });
       if (kind === "externo") demoVideos.push({ lesson_id: id, status: "skipped", provider: "loom", external_url: null, storage_path: null });
     });
   });
@@ -174,4 +177,11 @@ export const demoProgress = [
   { lesson_id: "c-start-m2-l1", completed_at: "2026-09-22T10:00:00Z", position_s: 0, updated_at: "2026-09-22T10:00:00Z" },
   { lesson_id: "c-start-m2-l2", completed_at: "2026-09-23T10:00:00Z", position_s: 0, updated_at: "2026-09-23T10:00:00Z" },
   { lesson_id: "c-start-m2-l3", completed_at: null, position_s: 312, updated_at: "2026-09-27T21:00:00Z" },
+  ...["c-copy-m1-l1", "c-copy-m1-l2", "c-finance-m1-l1", "c-supply-m1-l1", "c-archive-m1-l1", "c-archive-m2-l1"].map((id, i) => ({
+    lesson_id: id,
+    completed_at: `2026-09-${String(24 + (i % 4)).padStart(2, "0")}T18:00:00Z`,
+    position_s: 0,
+    updated_at: `2026-09-${String(24 + (i % 4)).padStart(2, "0")}T18:00:00Z`,
+  })),
+  ...Array.from({ length: 14 }, (_, i) => ({ lesson_id: `c-origins-m1-l${(i % 3) + 1}`, completed_at: null, position_s: 30, updated_at: `2026-08-${String(3 + i * 2).padStart(2, "0")}T18:00:00Z` })),
 ];
