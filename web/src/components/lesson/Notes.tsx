@@ -61,7 +61,7 @@ export function Notes({ lessonId, initial }: { lessonId: string; initial: Note[]
         />
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
           {hasVideo ? (
-            <button type="button" onClick={() => setWithTime((w) => !w)} className={`chip h-8 cursor-pointer ${withTime ? "border-accent/40 text-accent-strong" : ""}`} aria-pressed={withTime}>
+            <button type="button" onClick={() => setWithTime((w) => !w)} className={`chip h-8 cursor-pointer ${withTime ? "border-white/40 text-ink" : ""}`} aria-pressed={withTime}>
               <Clock className="size-3.5" aria-hidden /> {withTime ? `En ${formatClock(Math.max(1, stamp ?? 0) * 1000)}` : "Sin minuto"}
             </button>
           ) : (
@@ -80,18 +80,18 @@ export function Notes({ lessonId, initial }: { lessonId: string; initial: Note[]
       {sorted.length ? (
         <ul className="mt-5 space-y-2">
           {sorted.map((n) => (
-            <li key={n.id} className={`group card flex items-start gap-3 p-4 ${n.id.startsWith("tmp-") ? "opacity-60" : ""}`}>
+            <li key={n.id} className={`group card flex animate-pop items-start gap-3 p-4 ${n.id.startsWith("tmp-") ? "opacity-60" : ""}`}>
               {n.atS !== null ? (
                 <button
                   onClick={() => seek(n.atS!)}
                   disabled={!hasVideo}
-                  className="shrink-0 rounded-md bg-accent-soft px-2 py-1 font-mono text-xs font-semibold tabular-nums text-accent-strong transition hover:bg-accent/25 disabled:cursor-default"
+                  className="shrink-0 rounded-full bg-white px-2.5 py-1 font-mono text-xs font-semibold tabular-nums text-black transition hover:shadow-[0_0_16px_-2px_#fff] disabled:cursor-default"
                   title="Ir a este momento"
                 >
                   {formatClock(Math.max(1, n.atS) * 1000)}
                 </button>
               ) : (
-                <span className="shrink-0 rounded-md bg-surface-3 px-2 py-1 text-xs font-semibold text-muted">Nota</span>
+                <span className="serif shrink-0 rounded-full border border-white/10 px-2.5 py-0.5 text-sm text-muted">nota</span>
               )}
               <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink/90">{n.body}</p>
               <button

@@ -31,13 +31,16 @@ export function splitEmoji(title: string): { emoji: string | null; text: string 
 }
 
 /** Degradado estable a partir de un id (portadas y miniaturas sin imagen), dentro de la paleta de la marca. */
-const HUES = [252, 266, 282, 232, 214, 196, 300, 244];
+/** Degradado monocromo determinista (luz blanca en posiciones distintas según el id). */
 export function gradientFor(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  const hue = HUES[h % HUES.length];
-  const hue2 = HUES[(h >>> 3) % HUES.length];
-  return `radial-gradient(90% 90% at 15% 10%, hsl(${hue} 80% 58% / 0.55) 0%, transparent 60%), radial-gradient(80% 80% at 95% 100%, hsl(${hue2} 85% 55% / 0.35) 0%, transparent 60%), linear-gradient(140deg, #17161f 0%, #0b0b0f 100%)`;
+  const x1 = 5 + (h % 45);
+  const y1 = 5 + ((h >>> 4) % 40);
+  const x2 = 60 + ((h >>> 8) % 40);
+  const y2 = 55 + ((h >>> 12) % 45);
+  const a1 = 0.22 + ((h >>> 16) % 10) / 100;
+  return `radial-gradient(70% 80% at ${x1}% ${y1}%, rgb(255 255 255 / ${a1}) 0%, transparent 60%), radial-gradient(60% 70% at ${x2}% ${y2}%, rgb(255 255 255 / 0.1) 0%, transparent 60%), linear-gradient(150deg, #1a1a1a 0%, #070707 100%)`;
 }
 
 export function greeting(date = new Date()): string {

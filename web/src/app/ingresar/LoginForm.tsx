@@ -4,8 +4,7 @@ import { useActionState, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { requestReset, signIn } from "@/app/actions";
 
-const input =
-  "h-12 w-full rounded-xl border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-subtle outline-none transition focus:border-accent/60 focus:bg-surface-2";
+const input = "input text-[15px]";
 
 export function LoginForm({ volver }: { volver: string }) {
   const [mode, setMode] = useState<"login" | "reset">("login");
@@ -20,7 +19,7 @@ export function LoginForm({ volver }: { volver: string }) {
           <input name="email" type="email" autoComplete="email" required className={input} placeholder="tu@correo.com" />
         </label>
         {resetState?.error ? <p className="text-sm text-red-400">{resetState.error}</p> : null}
-        {resetState?.ok ? <p className="rounded-xl border border-success/25 bg-success/10 p-3 text-sm text-success">{resetState.ok}</p> : null}
+        {resetState?.ok ? <p className="rounded-2xl border border-white/15 bg-white/[0.06] p-3 text-sm text-ink">{resetState.ok}</p> : null}
         <button className="btn btn-primary w-full" disabled={resetting}>
           {resetting ? <Loader2 className="size-4 animate-spin" /> : null} Enviar enlace
         </button>
@@ -48,7 +47,7 @@ export function LoginForm({ volver }: { volver: string }) {
         <input name="password" type="password" autoComplete="current-password" required className={input} placeholder="••••••••" />
       </label>
       {loginState?.error ? (
-        <p role="alert" className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
+        <p role="alert" className="rounded-2xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
           {loginState.error}
         </p>
       ) : null}

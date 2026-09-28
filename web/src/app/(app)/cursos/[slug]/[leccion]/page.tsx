@@ -9,7 +9,7 @@ import { LessonShell, PlayerProvider } from "@/components/lesson/PlayerContext";
 import { LessonTabs } from "@/components/lesson/LessonTabs";
 import { Notes } from "@/components/lesson/Notes";
 import { Transcript } from "@/components/lesson/Transcript";
-import { DoneBadge, LessonThumb, ProgressBar, providerName } from "@/components/ui";
+import { DoneBadge, LessonThumb, ProgressBar, SerifTail, providerName } from "@/components/ui";
 import { allLessons, courseProgress, getLessonDetail, getNotes, getProgress, signPaths } from "@/lib/data";
 import { embedUrl } from "@/lib/embed";
 import { formatClock, formatDuration, splitEmoji } from "@/lib/format";
@@ -49,16 +49,16 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
       next={d.next ? { href: hrefOf(d.next), title: d.next.title } : null}
     />
   ) : lesson.kind === "externo" && embed ? (
-    <div className="overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-line">
+    <div className="overflow-hidden rounded-3xl bg-black shadow-[0_40px_100px_-30px_#000] ring-1 ring-white/10">
       <iframe src={embed} className="aspect-video w-full" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen title={lesson.title} loading="lazy" />
     </div>
   ) : lesson.kind === "texto" ? (
     <div className="card flex items-center gap-4 p-6">
-      <span className="grid size-12 place-items-center rounded-xl bg-accent-soft text-accent-strong">
-        <BookOpen className="size-6" aria-hidden />
+      <span className="grid size-12 place-items-center rounded-full bg-white text-black shadow-[0_0_24px_-6px_#fff]">
+        <BookOpen className="size-5" aria-hidden />
       </span>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-strong">Clase de lectura</p>
+        <p className="serif text-2xl leading-none">Clase de lectura</p>
         <p className="mt-1 text-sm text-muted">Esta clase no tiene video: el contenido está aquí abajo.</p>
       </div>
     </div>
@@ -75,10 +75,14 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
             <Link href={`/cursos/${course.slug}`} className="transition hover:text-ink">
               {splitEmoji(course.title).text}
             </Link>
-            <span className="text-line-strong">/</span>
-            <span>Módulo {moduleIndex}</span>
+            <span className="text-white/20">/</span>
+            <span>
+              Módulo <span className="serif text-[15px] text-ink">{String(moduleIndex).padStart(2, "0")}</span>
+            </span>
           </nav>
-          <h1 className="mt-2 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{lesson.title}</h1>
+          <h1 className="display mt-3 text-3xl leading-[1.08] sm:text-[2.6rem]">
+            <SerifTail text={lesson.title} />
+          </h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="chip">
               Clase {lesson.number} de {course.lessonCount}
@@ -107,8 +111,8 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
             <ul className="grid max-w-3xl gap-2 sm:grid-cols-2">
               {d.attachments.map((a, i) => (
                 <li key={i}>
-                  <a href={a.url ?? "#"} target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 p-4 transition hover:border-line-strong">
-                    <FileDown className="size-5 text-accent-strong" aria-hidden />
+                  <a href={a.url ?? "#"} target="_blank" rel="noopener noreferrer" className="card lift flex items-center gap-3 p-4">
+                    <FileDown className="size-5 text-ink" aria-hidden />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{a.title}</span>
                   </a>
                 </li>
@@ -122,10 +126,10 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
       {/* Anterior / siguiente */}
       <div className="mt-12 grid gap-3 sm:grid-cols-2">
         {d.prev ? (
-          <Link href={hrefOf(d.prev)} className="card group flex items-center gap-3 p-4 transition hover:border-line-strong">
+          <Link href={hrefOf(d.prev)} className="card lift group flex items-center gap-3 p-5">
             <ArrowLeft className="size-5 shrink-0 text-subtle transition group-hover:-translate-x-0.5 group-hover:text-ink" aria-hidden />
             <div className="min-w-0">
-              <p className="text-xs text-subtle">Anterior</p>
+              <p className="serif text-base text-subtle">Anterior</p>
               <p className="truncate text-sm font-medium">{d.prev.title}</p>
             </div>
           </Link>
@@ -133,9 +137,9 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
           <span />
         )}
         {d.next ? (
-          <Link href={hrefOf(d.next)} className="card group flex items-center justify-end gap-3 p-4 text-right transition hover:border-line-strong">
+          <Link href={hrefOf(d.next)} className="card lift group flex items-center justify-end gap-3 p-5 text-right">
             <div className="min-w-0">
-              <p className="text-xs text-subtle">Siguiente</p>
+              <p className="serif text-base text-subtle">Siguiente</p>
               <p className="truncate text-sm font-medium">{d.next.title}</p>
             </div>
             <ArrowRight className="size-5 shrink-0 text-subtle transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden />
@@ -148,7 +152,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
   const sidebar = (
     <div className="card overflow-hidden">
       <div className="border-b border-line p-5">
-        <Link href={`/cursos/${course.slug}`} className="line-clamp-2 font-semibold leading-snug transition hover:text-accent-strong">
+        <Link href={`/cursos/${course.slug}`} className="line-clamp-2 font-semibold leading-snug tracking-[-0.01em] transition hover:opacity-70">
           {course.title}
         </Link>
         <div className="mt-3 flex items-center gap-3">
@@ -160,8 +164,8 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
         <ScrollToCurrent containerId="temario" />
         {course.modules.map((m, mi) => (
           <div key={m.id}>
-            <p className="sticky top-0 z-10 border-b border-line/60 bg-surface/95 px-5 py-2.5 text-xs font-semibold text-muted backdrop-blur">
-              {mi + 1}. {m.title}
+            <p className="sticky top-0 z-10 border-b border-white/[0.06] bg-neutral-950/80 px-5 py-2.5 text-xs font-semibold text-muted backdrop-blur-xl">
+              <span className="serif mr-1.5 text-sm font-normal text-ink">{String(mi + 1).padStart(2, "0")}</span> {m.title}
             </p>
             <ol>
               {m.lessons.map((l) => {
@@ -171,14 +175,14 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
                     <Link
                       href={hrefOf(l)}
                       aria-current={current ? "page" : undefined}
-                      className={`flex items-start gap-3 px-5 py-3 text-sm transition ${current ? "bg-accent-soft text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}
+                      className={`relative flex items-start gap-3 px-5 py-3 text-sm transition duration-300 ${current ? "bg-white/[0.08] text-ink before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-white before:shadow-[0_0_10px_#fff]" : "text-muted hover:bg-white/[0.04] hover:text-ink"}`}
                     >
                       <DoneBadge entry={progress.get(l.id)} />
                       <span className="min-w-0 flex-1">
                         <span className={`line-clamp-2 leading-snug ${current ? "font-medium" : ""}`}>{l.title}</span>
                         <span className="mt-1 flex items-center gap-2 text-xs text-subtle">
                           {l.durationMs ? <span className="tabular-nums">{formatClock(l.durationMs)}</span> : null}
-                          {l.kind === "video" && !l.videoReady ? <span className="text-warning/80">Próximamente</span> : null}
+                          {l.kind === "video" && !l.videoReady ? <span className="serif text-[13px] text-muted">próximamente</span> : null}
                           {l.kind === "texto" ? <span>Lectura</span> : null}
                         </span>
                       </span>
@@ -202,14 +206,14 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
 
 function ComingSoon({ lesson, thumb, external }: { lesson: Lesson; thumb?: string; external: string | null }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl ring-1 ring-line">
-      <LessonThumb lesson={lesson} src={thumb} icon={false} className="rounded-none opacity-60 blur-[1px]" />
-      <div className="absolute inset-0 grid place-items-center bg-gradient-to-t from-bg via-bg/70 to-bg/30 p-6">
+    <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/10">
+      <LessonThumb lesson={lesson} src={thumb} icon={false} className="min-h-72 rounded-none opacity-70" />
+      <div className="absolute inset-0 grid place-items-center bg-black/30 p-6 backdrop-blur-md">
         <div className="max-w-md text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-full bg-warning/15 text-warning">
-            <Sparkles className="size-5" aria-hidden />
+          <span className="mx-auto grid size-14 place-items-center rounded-full border border-white/20 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40] backdrop-blur-xl">
+            <Sparkles className="size-5 animate-pulse" aria-hidden />
           </span>
-          <p className="mt-4 text-lg font-semibold">{external ? "Video externo" : "Este video estará disponible pronto"}</p>
+          <p className="display mt-5 text-3xl">{external ? <>Video <em>externo</em></> : <>Muy <em>pronto</em></>}</p>
           <p className="mt-2 text-sm text-muted">
             {external ? "Este video está alojado fuera de la plataforma." : "Estamos publicando las clases en orden. Mientras tanto puedes leer la descripción y tomar notas."}
           </p>

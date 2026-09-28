@@ -22,7 +22,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
           autoFocus
           placeholder="¿Qué quieres aprender? Ej: ganchos, testing, UGC…"
           aria-label="Buscar clases"
-          className="h-14 w-full rounded-2xl border border-line bg-surface pl-12 pr-4 text-base text-ink placeholder:text-subtle outline-none transition focus:border-accent/60"
+          className="input h-14 rounded-full pl-12 pr-4 text-base"
         />
       </form>
 
@@ -38,7 +38,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
         {results.slice(0, 60).map(({ course, lesson }) => (
           <li key={lesson.id}>
             <Link href={`/cursos/${course.slug}/${lesson.id}`} className="card flex items-center gap-4 p-4 transition hover:border-line-strong">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-muted">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05] text-muted">
                 <KindIcon lesson={lesson} className="size-5" />
               </span>
               <div className="min-w-0 flex-1">

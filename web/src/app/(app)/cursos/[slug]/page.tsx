@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ChevronDown, Clock, Layers, PlayCircle } from "lucide-react";
-import { CourseCover, DoneBadge, KindIcon, LessonThumb, ProgressBar, StatusChip } from "@/components/ui";
+import { CourseCover, DoneBadge, SerifTail, KindIcon, LessonThumb, ProgressBar, StatusChip } from "@/components/ui";
 import { allLessons, courseProgress, getCourse, getProgress, signPaths } from "@/lib/data";
 import { formatClock, formatDuration, plural, splitEmoji } from "@/lib/format";
 
@@ -26,18 +26,21 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
     <div>
       {/* Portada */}
       <section className="relative overflow-hidden border-b border-line">
-        <div className="absolute inset-0 opacity-40 blur-3xl" aria-hidden>
+        <div className="absolute inset-0 scale-110 opacity-50 blur-3xl" aria-hidden>
           <CourseCover course={course} src={course.coverPath ? signed[course.coverPath] : undefined} className="size-full" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-bg/40 via-bg/80 to-bg" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-b from-bg/20 via-bg/70 to-bg/0" aria-hidden />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 sm:px-6 md:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:py-16">
           <div className="animate-fade-up">
-            <Link href="/cursos" className="text-sm text-muted transition hover:text-ink">
+            <Link href="/cursos" className="chip transition hover:border-white/30 hover:text-ink">
               ← Cursos
             </Link>
-            <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-              {emoji ? <span className="mr-3">{emoji}</span> : null}
-              {text}
+            <p className="eyebrow mt-6">
+              Curso <span className="serif text-sm normal-case tracking-normal text-ink">n.º {String(course.position).padStart(2, "0")}</span>
+            </p>
+            <h1 className="display mt-3 text-4xl sm:text-6xl">
+              {emoji ? <span className="mr-3 inline-block align-[0.05em] text-[0.8em]">{emoji}</span> : null}
+              <SerifTail text={text} />
             </h1>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="chip">
@@ -68,14 +71,16 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
               </Link>
             ) : null}
           </div>
-          <CourseCover course={course} src={course.coverPath ? signed[course.coverPath] : undefined} large className="hidden aspect-[16/10] rounded-2xl shadow-2xl md:block animate-fade-up [animation-delay:80ms]" />
+          <CourseCover course={course} src={course.coverPath ? signed[course.coverPath] : undefined} large className="group hidden aspect-[16/10] rounded-3xl border border-white/10 shadow-[0_40px_100px_-30px_#000] md:block animate-fade-up [animation-delay:120ms] [transform:perspective(1200px)_rotateY(-8deg)_rotateX(3deg)] transition duration-700 hover:[transform:perspective(1200px)_rotateY(0)_rotateX(0)]" />
         </div>
       </section>
 
       {/* Temario */}
       <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">Temario</h2>
+          <h2 className="display text-4xl">
+            El <em>temario</em>
+          </h2>
           {readyCount < lessons.length ? (
             <p className="text-xs text-subtle">
               {readyCount} de {lessons.length} clases disponibles · el resto se está publicando
@@ -89,11 +94,13 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
             const open = m.lessons.some((l) => l.id === next?.id) || (mi === 0 && p.done === 0);
             const { emoji: me, text: mt } = splitEmoji(m.title);
             return (
-              <details key={m.id} open={open} className="group card overflow-hidden">
-                <summary className="flex cursor-pointer list-none items-center gap-4 p-5 transition hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-lg">{me ?? <span className="text-sm font-semibold text-muted">{mi + 1}</span>}</span>
+              <details key={m.id} open={open} className="reveal group card overflow-hidden">
+                <summary className="flex cursor-pointer list-none items-center gap-4 p-5 transition hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-lg shadow-[inset_0_1px_0_#ffffff1f]">{me ?? <span className="serif text-lg text-muted">{mi + 1}</span>}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-subtle">Módulo {mi + 1}</p>
+                    <p className="text-xs text-subtle">
+                      Módulo <span className="serif text-sm text-muted">{String(mi + 1).padStart(2, "0")}</span>
+                    </p>
                     <h3 className="truncate font-semibold">{mt}</h3>
                   </div>
                   <div className="hidden shrink-0 text-right text-xs text-muted sm:block">
@@ -102,7 +109,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                     </p>
                     {ms ? <p className="mt-0.5 text-subtle">{formatDuration(ms)}</p> : null}
                   </div>
-                  <ChevronDown className="size-5 shrink-0 text-subtle transition group-open:rotate-180" aria-hidden />
+                  <ChevronDown className="size-5 shrink-0 text-subtle transition duration-500 [transition-timing-function:var(--ease-out-expo)] group-open:rotate-180" aria-hidden />
                 </summary>
                 <ol className="border-t border-line">
                   {m.lessons.map((l) => {
@@ -112,10 +119,10 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                       <li key={l.id} className="border-b border-line/60 last:border-0">
                         <Link
                           href={`/cursos/${course.slug}/${l.id}`}
-                          className={`flex items-center gap-4 px-5 py-3.5 transition hover:bg-surface-2 ${isNext ? "bg-accent-soft/60" : ""}`}
+                          className={`group/row flex items-center gap-4 px-5 py-3.5 transition duration-300 hover:bg-white/[0.04] ${isNext ? "bg-white/[0.06]" : ""}`}
                         >
                           <DoneBadge entry={entry} />
-                          <LessonThumb lesson={l} src={l.thumbnailPath ? signed[l.thumbnailPath] : undefined} progress={!entry?.completed && entry?.positionS && l.durationMs ? (entry.positionS * 100000) / l.durationMs : undefined} className="hidden w-28 shrink-0 sm:block" />
+                          <LessonThumb lesson={l} src={l.thumbnailPath ? signed[l.thumbnailPath] : undefined} progress={!entry?.completed && entry?.positionS && l.durationMs ? (entry.positionS * 100000) / l.durationMs : undefined} className="hidden w-28 shrink-0 transition duration-500 group-hover/row:scale-105 sm:block" />
                           <div className="min-w-0 flex-1">
                             <p className={`line-clamp-2 text-[15px] leading-snug ${entry?.completed ? "text-muted" : "text-ink"}`}>
                               <span className="mr-2 font-mono text-xs text-subtle">{String(l.number).padStart(2, "0")}</span>
@@ -124,7 +131,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-subtle">
                               <KindIcon lesson={l} className="size-3.5" />
                               {l.durationMs ? <span className="tabular-nums">{formatClock(l.durationMs)}</span> : null}
-                              {isNext && p.done > 0 ? <span className="font-medium text-accent-strong">Siguiente</span> : null}
+                              {isNext && p.done > 0 ? <span className="serif text-sm text-ink">— siguiente</span> : null}
                             </div>
                           </div>
                           <div className="hidden sm:block">
@@ -143,3 +150,4 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
     </div>
   );
 }
+

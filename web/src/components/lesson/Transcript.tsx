@@ -92,7 +92,7 @@ export function Transcript({ src }: { src: string | null }) {
     return (
       <>
         {text.slice(0, i)}
-        <mark className="rounded bg-accent/30 px-0.5 text-ink">{text.slice(i, i + t.length)}</mark>
+        <mark className="rounded bg-white px-0.5 text-black">{text.slice(i, i + t.length)}</mark>
         {text.slice(i + t.length)}
       </>
     );
@@ -108,11 +108,11 @@ export function Transcript({ src }: { src: string | null }) {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar en lo que se dice en el video…"
             aria-label="Buscar en la transcripción"
-            className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-accent/60"
+            className="input h-10 rounded-full pl-9 pr-3 text-sm"
           />
         </div>
         {hasVideo ? (
-          <button onClick={() => setFollow((f) => !f)} className={`chip h-10 cursor-pointer px-3 ${follow ? "border-accent/40 text-accent-strong" : ""}`} aria-pressed={follow}>
+          <button onClick={() => setFollow((f) => !f)} className={`chip h-10 cursor-pointer px-3 ${follow ? "border-white/40 text-ink" : ""}`} aria-pressed={follow}>
             <LocateFixed className="size-3.5" aria-hidden /> Seguir video
           </button>
         ) : null}
@@ -120,7 +120,7 @@ export function Transcript({ src }: { src: string | null }) {
       <p className="mt-2 text-xs text-subtle">
         {q ? `${shown.length} ${shown.length === 1 ? "coincidencia" : "coincidencias"}` : "Transcripción en inglés · haz clic en una frase para ir a ese momento"}
       </p>
-      <div ref={box} className="scroll-thin relative mt-3 max-h-[28rem] overflow-y-auto rounded-xl border border-line bg-surface/60 p-2">
+      <div ref={box} className="scroll-thin relative mt-3 max-h-[28rem] overflow-y-auto glass rounded-2xl p-2">
         {shown.map((c) => {
           const active = c.i === activeIndex;
           return (
@@ -129,9 +129,9 @@ export function Transcript({ src }: { src: string | null }) {
               data-i={c.i}
               onClick={() => seek(c.start)}
               disabled={!hasVideo}
-              className={`group flex w-full gap-3 rounded-lg px-3 py-2 text-left text-[15px] leading-relaxed transition ${active ? "bg-accent-soft text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"} disabled:cursor-default`}
+              className={`group flex w-full gap-3 rounded-xl px-3 py-2 text-left text-[15px] leading-relaxed transition duration-300 ${active ? "bg-white/[0.09] text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"} disabled:cursor-default`}
             >
-              <span className={`mt-0.5 shrink-0 font-mono text-xs tabular-nums ${active ? "text-accent-strong" : "text-subtle group-hover:text-accent-strong"}`}>{formatClock(c.start * 1000) || "0:00"}</span>
+              <span className={`mt-0.5 shrink-0 font-mono text-xs tabular-nums ${active ? "text-ink" : "text-subtle group-hover:text-ink"}`}>{formatClock(c.start * 1000) || "0:00"}</span>
               <span>{highlight(c.text)}</span>
             </button>
           );

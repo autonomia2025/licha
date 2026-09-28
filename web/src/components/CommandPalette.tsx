@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, CornerDownLeft, FileText, Home, PlayCircle, Search, ExternalLink } from "lucide-react";
 
 export interface PaletteItem {
@@ -83,19 +84,19 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
     <>
       <button
         onClick={show}
-        className="ml-auto hidden h-10 w-full max-w-xs items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-subtle transition hover:border-line-strong hover:text-muted md:flex"
+        className="ml-auto hidden h-10 w-full max-w-xs items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm text-subtle transition duration-300 hover:border-white/25 hover:bg-white/[0.07] hover:text-muted md:flex"
       >
         <Search className="size-4" aria-hidden />
         <span className="flex-1 text-left">Buscar clases…</span>
-        <kbd className="rounded-md border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted">⌘K</kbd>
+        <kbd className="rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 font-mono text-[10.5px] text-muted">⌘K</kbd>
       </button>
-      <button onClick={show} className="ml-auto grid size-10 place-items-center rounded-xl border border-line text-muted md:hidden" aria-label="Buscar">
+      <button onClick={show} className="ml-auto grid size-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-muted md:hidden" aria-label="Buscar">
         <Search className="size-4" />
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 px-4 pt-[12vh] backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Buscar clases" className="card w-full max-w-2xl overflow-hidden animate-fade-up" onMouseDown={(e) => e.stopPropagation()}>
+      {open ? createPortal(
+        <div className="fixed inset-0 z-50 flex animate-fade items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Buscar clases" className="glass w-full max-w-2xl overflow-hidden bg-neutral-950/60 animate-pop shadow-[0_1px_0_0_#ffffff1f_inset,0_40px_120px_-20px_#000]" onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Search className="size-5 text-subtle" aria-hidden />
               <input
@@ -134,9 +135,9 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
                     <button
                       onMouseMove={() => setSel(i)}
                       onClick={() => go(r.href)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${active ? "bg-surface-3" : ""}`}
+                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition duration-200 ${active ? "bg-white/[0.08]" : ""}`}
                     >
-                      <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${active ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}>
+                      <span className={`grid size-9 shrink-0 place-items-center rounded-full transition duration-300 ${active ? "bg-white text-black shadow-[0_0_20px_-4px_#fff]" : "border border-white/10 bg-white/[0.04] text-muted"}`}>
                         <Icon className="size-4" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -155,7 +156,8 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
               <span className="ml-auto">{items.length} clases indexadas</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

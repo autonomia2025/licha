@@ -31,7 +31,7 @@ export function CompleteButton({ lessonId, completed, finishesCourse = false }: 
       }
       disabled={pending}
       aria-pressed={done}
-      className={`btn ${done ? "border border-success/30 bg-success/10 text-success hover:bg-success/15" : "btn-ghost"}`}
+      className={`btn ${done ? "btn-primary" : "btn-ghost"}`}
     >
       <Check className="size-4" strokeWidth={done ? 3 : 2} aria-hidden />
       {done ? "Completada" : finishesCourse ? "Completar curso 🎉" : "Marcar como completada"}

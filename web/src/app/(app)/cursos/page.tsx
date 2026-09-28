@@ -13,16 +13,18 @@ export default async function CoursesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="animate-fade-up">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-strong">Biblioteca</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Cursos</h1>
-        <p className="mt-3 max-w-2xl text-muted">
+        <p className="eyebrow">Biblioteca</p>
+        <h1 className="display mt-4 text-5xl sm:text-7xl">
+          Todo el <em>programa</em>
+        </h1>
+        <p className="mt-5 max-w-2xl text-lg text-muted">
           {plural(library.length, "curso", "cursos")} · {plural(totalLessons, "clase", "clases")}
           {totalMs ? ` · ${formatDuration(totalMs)} de contenido` : ""}. Empieza por el primero y avanza en orden: cada curso construye sobre el anterior.
         </p>
       </header>
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {library.map((c, i) => (
-          <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+          <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${120 + Math.min(i, 8) * 60}ms` }}>
             <CourseCard course={c} cover={c.coverPath ? signed[c.coverPath] : undefined} progress={courseProgress(c, progress)} />
           </div>
         ))}

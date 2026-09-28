@@ -1,30 +1,36 @@
 import { Logo } from "./ui";
 
-/** Pantalla dividida para login / recuperar contraseña. */
+/** Pantalla de login / recuperar contraseña: titular editorial a la izquierda y formulario de vidrio. */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-screen flex-1 lg:grid-cols-2">
-      <section className="relative hidden overflow-hidden border-r border-line lg:block">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(60% 50% at 20% 20%, #7c6cff40 0%, transparent 60%), radial-gradient(50% 40% at 80% 80%, #3b82f630 0%, transparent 60%), linear-gradient(160deg, #0f0f14, #09090b)",
-          }}
-          aria-hidden
-        />
-        <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:48px_48px]" aria-hidden />
-        <div className="relative flex h-full flex-col justify-between p-12">
-          <Logo />
-          <div className="max-w-md">
-            <h1 className="text-4xl font-semibold leading-tight tracking-tight">Anuncios que venden. Marcas que escalan.</h1>
-            <p className="mt-4 text-lg leading-relaxed text-muted">El programa completo de Evolve para llevar tu e-commerce al siguiente nivel, clase por clase.</p>
-          </div>
-          <p className="text-sm text-subtle">© {new Date().getFullYear()} Evolve</p>
+    <main className="relative grid min-h-screen flex-1 lg:grid-cols-[1.15fr_1fr]">
+      <section className="relative hidden flex-col justify-between p-12 lg:flex">
+        <Logo className="animate-fade-up" />
+        <div className="max-w-xl">
+          <p className="eyebrow animate-fade-up [animation-delay:80ms]">Área de alumnos</p>
+          <h1 className="display mt-6 animate-fade-up text-7xl [animation-delay:140ms] xl:text-8xl">
+            Anuncios que <em className="shine">venden</em>.
+            <br />
+            Marcas que <em>escalan</em>.
+          </h1>
+          <p className="mt-8 max-w-md animate-fade-up text-lg leading-relaxed text-muted [animation-delay:220ms]">
+            El programa completo de Evolve para llevar tu e-commerce al siguiente nivel, <em className="serif text-[1.15em] text-ink">clase por clase</em>.
+          </p>
+        </div>
+        <div className="flex animate-fade-up items-center gap-6 text-sm text-subtle [animation-delay:300ms]">
+          <span>
+            <span className="serif text-2xl text-ink">14</span> cursos
+          </span>
+          <span className="h-4 w-px bg-white/15" />
+          <span>
+            <span className="serif text-2xl text-ink">+700</span> clases
+          </span>
+          <span className="h-4 w-px bg-white/15" />
+          <span>© {new Date().getFullYear()} Evolve</span>
         </div>
       </section>
-      <section className="flex items-center justify-center px-6 py-16">
-        <div className="w-full max-w-sm animate-fade-up">
+      <section className="flex items-center justify-center px-5 py-16">
+        <div className="glass w-full max-w-md animate-fade-up p-8 [animation-delay:120ms] sm:p-10">
           <Logo className="mb-10 lg:hidden" />
           {children}
         </div>

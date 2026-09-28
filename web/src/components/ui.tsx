@@ -5,17 +5,21 @@ import type { Course, Lesson, ProgressEntry } from "@/lib/types";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 font-semibold tracking-[0.18em] text-ink ${className}`}>
-      <span className="grid size-8 place-items-center rounded-lg bg-ink text-[10px] font-black tracking-[0.12em] text-bg">EV</span>
-      <span className="text-sm">EVOLVE</span>
+    <span className={`group/logo inline-flex items-center gap-2.5 text-ink ${className}`}>
+      <span className="grid size-8 place-items-center rounded-full bg-ink text-bg shadow-[0_0_24px_-4px_#ffffff80] transition duration-500 group-hover/logo:rotate-[18deg]">
+        <span className="serif text-lg leading-none">e</span>
+      </span>
+      <span className="text-[15px] font-semibold tracking-[-0.02em]">
+        Evolve<span className="serif ml-1 font-normal text-muted">academy</span>
+      </span>
     </span>
   );
 }
 
 export function ProgressBar({ pct, className = "" }: { pct: number; className?: string }) {
   return (
-    <div className={`h-1.5 w-full overflow-hidden rounded-full bg-surface-3 ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-      <div className="h-full rounded-full bg-gradient-to-r from-accent to-accent-strong transition-[width] duration-500" style={{ width: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }} />
+    <div className={`h-1 w-full overflow-hidden rounded-full bg-white/10 ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+      <div className="bar-fill h-full rounded-full bg-gradient-to-r from-white/60 to-white shadow-[0_0_12px_#ffffffaa] transition-[width] duration-700" style={{ width: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }} />
     </div>
   );
 }
@@ -30,13 +34,18 @@ export function CourseCover({ course, src, className = "", large = false }: { co
         <img src={src} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
       ) : (
         <>
-          <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:32px_32px]" aria-hidden />
+          <div className="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:32px_32px]" aria-hidden />
+          <span className={`serif absolute -right-2 -top-6 select-none leading-none text-white/[0.07] ${large ? "text-[12rem]" : "text-[9rem]"}`} aria-hidden>
+            {String(course.position).padStart(2, "0")}
+          </span>
           <div className="absolute inset-0 grid place-items-center">
-            <span className={`drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)] ${large ? "text-7xl" : "text-6xl"}`} aria-hidden>
-              {emoji ?? "✦"}
+            <span className={`grid place-items-center rounded-full border border-white/15 bg-white/[0.06] shadow-[inset_0_1px_0_#ffffff26,0_20px_40px_-12px_#000] backdrop-blur-xl transition duration-700 [transition-timing-function:var(--ease-out-expo)] group-hover:scale-110 ${large ? "size-28 text-5xl" : "size-20 text-4xl"}`} aria-hidden>
+              <span className="grayscale-[35%]">{emoji ?? "✦"}</span>
             </span>
           </div>
-          <span className="absolute bottom-4 left-5 text-[10px] font-semibold tracking-[0.3em] text-white/50">EVOLVE · CURSO {String(course.position).padStart(2, "0")}</span>
+          <span className="absolute bottom-4 left-5 text-[10px] font-medium tracking-[0.3em] text-white/45">
+            EVOLVE · <span className="serif text-[13px] tracking-normal text-white/70">curso {String(course.position).padStart(2, "0")}</span>
+          </span>
         </>
       )}
       <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/5" />
@@ -57,11 +66,11 @@ export function LessonThumb({ lesson, src, className = "", icon = true, progress
         </div>
       ) : null}
       {lesson.durationMs ? (
-        <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/75 px-1.5 py-0.5 font-mono text-[11px] font-medium text-white">{formatClock(lesson.durationMs)}</span>
+        <span className="absolute bottom-1.5 right-1.5 rounded-full border border-white/10 bg-black/55 px-2 py-0.5 font-mono text-[10.5px] font-medium text-white backdrop-blur-md">{formatClock(lesson.durationMs)}</span>
       ) : null}
       {progress && progress > 0 ? (
-        <span className="absolute inset-x-0 bottom-0 h-1 bg-black/50" aria-label={`Visto ${Math.round(progress)}%`}>
-          <span className="block h-full bg-accent" style={{ width: `${Math.min(100, progress)}%` }} />
+        <span className="absolute inset-x-0 bottom-0 h-[3px] bg-white/15" aria-label={`Visto ${Math.round(progress)}%`}>
+          <span className="bar-fill block h-full bg-white shadow-[0_0_10px_#fff]" style={{ width: `${Math.min(100, progress)}%` }} />
         </span>
       ) : null}
     </div>
@@ -89,7 +98,7 @@ export function providerName(p: Lesson["provider"]) {
 export function StatusChip({ lesson }: { lesson: Lesson }) {
   const s = lessonStatus(lesson);
   if (!s) return null;
-  const tone = s.tone === "soon" ? "border-warning/25 bg-warning/10 text-warning" : "";
+  const tone = s.tone === "soon" ? "border-white/20 text-ink" : "";
   return (
     <span className={`chip ${tone}`}>
       {s.tone === "soon" ? <Sparkles className="size-3" aria-hidden /> : null}
@@ -101,10 +110,10 @@ export function StatusChip({ lesson }: { lesson: Lesson }) {
 export function CourseCard({ course, cover, progress }: { course: Course; cover?: string; progress: { done: number; total: number; pct: number } }) {
   const started = progress.done > 0;
   return (
-    <Link href={`/cursos/${course.slug}`} className="group card block overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-glow">
-      <CourseCover course={course} src={cover} className="aspect-[16/9] transition duration-300 group-hover:brightness-110" />
+    <Link href={`/cursos/${course.slug}`} className="group card lift block overflow-hidden">
+      <CourseCover course={course} src={cover} className="aspect-[16/9] transition duration-700 group-hover:brightness-125" />
       <div className="space-y-3 p-5">
-        <h3 className="line-clamp-2 min-h-[2.75rem] text-[15px] font-semibold leading-snug text-ink">{splitEmoji(course.title).text}</h3>
+        <h3 className="line-clamp-2 min-h-[2.75rem] text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">{splitEmoji(course.title).text}</h3>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
           <span>{plural(course.modules.length, "módulo", "módulos")}</span>
           <span className="text-line-strong">•</span>
@@ -131,7 +140,7 @@ export function CourseCard({ course, cover, progress }: { course: Course; cover?
 export function DoneBadge({ entry }: { entry?: ProgressEntry }) {
   if (entry?.completed)
     return (
-      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-success/15 text-success" title="Completada">
+      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-white text-black shadow-[0_0_14px_-2px_#ffffffaa]" title="Completada">
         <Check className="size-3.5" strokeWidth={3} aria-label="Completada" />
       </span>
     );
@@ -143,5 +152,17 @@ export function LockedNote() {
     <span className="inline-flex items-center gap-1.5 text-xs text-subtle">
       <Lock className="size-3" aria-hidden /> Sin acceso
     </span>
+  );
+}
+
+/** Pone la última palabra del título en serif cursiva, para mezclar tipografías. */
+export function SerifTail({ text }: { text: string }) {
+  const i = text.lastIndexOf(" ");
+  if (i < 0) return <em>{text}</em>;
+  return (
+    <>
+      {text.slice(0, i + 1)}
+      <em>{text.slice(i + 1)}</em>
+    </>
   );
 }

@@ -161,7 +161,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
 
   return (
     <div className="space-y-2">
-      <div className={`relative overflow-hidden bg-black ring-1 ring-line ${theater ? "sm:rounded-2xl" : "rounded-2xl shadow-2xl"}`}>
+      <div className={`relative overflow-hidden bg-black ring-1 ring-white/10 transition-[border-radius] duration-500 ${theater ? "sm:rounded-2xl" : "rounded-3xl shadow-[0_40px_100px_-30px_#000]"}`}>
         <video
           ref={videoRef}
           className={`aspect-video w-full bg-black ${theater ? "max-h-[78vh]" : ""}`}
@@ -180,13 +180,13 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
         </video>
 
         {toast ? (
-          <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/75 px-4 py-1.5 text-sm font-medium text-white backdrop-blur animate-fade-up">{toast}</div>
+          <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-xl animate-pop">{toast}</div>
         ) : null}
 
         {ended ? (
-          <div className="absolute inset-0 grid place-items-center bg-black/85 p-6 backdrop-blur-sm animate-fade-up">
+          <div className="absolute inset-0 grid place-items-center bg-black/60 p-6 backdrop-blur-2xl animate-fade">
             <div className="max-w-sm text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-success">¡Clase completada!</p>
+              <p className="serif text-3xl text-white">¡Clase completada!</p>
               {next ? (
                 <>
                   <p className="mt-3 text-sm text-muted">Siguiente clase{countdown !== null ? ` en ${countdown} s` : ""}</p>
@@ -208,7 +208,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                   </div>
                 </>
               ) : (
-                <p className="mt-3 text-lg font-semibold">Terminaste el curso 🎉</p>
+                <p className="display mt-3 text-3xl">Terminaste el <em>curso</em></p>
               )}
               <button
                 onClick={() => {
@@ -228,7 +228,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
         ) : null}
 
         {help ? (
-          <div className="absolute inset-0 grid place-items-center bg-black/85 p-6 backdrop-blur-sm animate-fade-up" onClick={() => setHelp(false)}>
+          <div className="absolute inset-0 grid place-items-center bg-black/60 p-6 backdrop-blur-2xl animate-fade" onClick={() => setHelp(false)}>
             <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-muted">Atajos de teclado</p>
               <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
@@ -245,7 +245,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                 ].map(([k, d]) => (
                   <div key={k} className="contents">
                     <dt>
-                      <kbd className="rounded-md border border-line-strong bg-surface-2 px-2 py-0.5 font-mono text-xs text-ink">{k}</kbd>
+                      <kbd className="rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 font-mono text-xs text-ink">{k}</kbd>
                     </dt>
                     <dd className="text-muted">{d}</dd>
                   </div>
@@ -263,7 +263,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
             <Gauge className="size-3.5" aria-hidden /> {speed}x
           </button>
           {speedOpen ? (
-            <div role="menu" className="card absolute bottom-10 right-0 z-20 flex gap-1 p-1.5 animate-fade-up">
+            <div role="menu" className="glass absolute bottom-10 right-0 z-20 flex gap-1 rounded-full bg-neutral-950/80 p-1.5 animate-pop">
               {SPEEDS.map((s) => (
                 <button
                   key={s}
@@ -273,7 +273,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                     applySpeed(s);
                     setSpeedOpen(false);
                   }}
-                  className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold tabular-nums ${s === speed ? "bg-ink text-bg" : "text-muted hover:bg-surface-2 hover:text-ink"}`}
+                  className={`rounded-full px-2.5 py-1.5 text-xs font-semibold tabular-nums transition ${s === speed ? "bg-white text-black" : "text-muted hover:bg-white/10 hover:text-ink"}`}
                 >
                   {s}x
                 </button>

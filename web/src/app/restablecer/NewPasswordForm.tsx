@@ -16,7 +16,7 @@ export function NewPasswordForm() {
           minLength={8}
           autoComplete="new-password"
           required
-          className="h-12 w-full rounded-xl border border-line bg-surface px-4 text-[15px] outline-none transition focus:border-accent/60"
+          className="input text-[15px]"
         />
       </label>
       {state?.error ? <p className="text-sm text-red-400">{state.error}</p> : null}
