@@ -20,6 +20,19 @@ Por eso **no invento un "ejemplo real"**. En su lugar entrego:
 | 🔶 **HIPÓTESIS** | Conocimiento previo de cómo suele funcionar Skool o sus proveedores. **No verificado en ESTE curso.** |
 | 🔍 **LO VERIFICA LA SONDA** | Campo concreto del informe que lo confirmará o refutará. |
 
+## 0.1 Evidencia real: primera ejecución de la sonda (grupo `evolve-8484`)
+
+| Hallazgo | Estado |
+|---|---|
+| 14 cursos en el classroom, detectados desde el JSON de la página (el DOM no tiene enlaces `<a>` a cursos) | ✅ |
+| 763 lecciones en total (177, 72, 7, 24, 124, 120, 15, 115, 17, 7, 1, 1, 50 y 33 por curso), con curso → módulo → lección leído del JSON | ✅ |
+| URL de lección `/<grupo>/classroom/<slug-curso>?md=<id 32 hex>` | ✅ |
+| Muestra de 10 lecciones (curso `fc758841`, módulos 1–2): **8 con HLS nativo** y subtítulos `en` | ✅ |
+| **Las calidades varían por video**: 1080/720/480/270, 1080/480/270 o 1078/480/270. Hay que guardarlas por video, no asumir una escalera fija. | ✅ |
+| Hubo que pulsar play: el manifest solo se pide al hacer clic en la miniatura | ✅ |
+| 2 de 10 sin HLS detectado (1.2 y 2.4). Pendiente: ¿no tienen video nativo, usan otro proveedor o no respondieron al clic? | ❓ |
+| La página carga el SDK de **AWS WAF** (`*.edge.sdk.awswaf.com`), es decir, protección anti-bots. Es un riesgo para ejecutar desde cloud o en modo headless. | ⚠️ |
+
 ---
 
 ## 1. Estructura
