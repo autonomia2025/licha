@@ -10,11 +10,13 @@ remux a MP4 sin recodificar → unión de los subtítulos WebVTT → verificaci�
 ## Preparación (una vez, en el Mac)
 
 1. Aplica `supabase/migrations/20260928000000_course_migration_pilot.sql` en el proyecto de Supabase.
-2. Crea `tools/skool-migrator/.env` (está en `.gitignore`; **nunca lo compartas ni lo pegues en un chat**):
+2. Crea una **clave secreta nueva** en Supabase: *Project Settings → API Keys → Publishable and secret API keys →*
+   *New secret key* (empieza con `sb_secret_`). Luego, en `tools/skool-migrator`, ejecuta esto y **pega la clave
+   cuando lo pida**. No se ve al escribir y no queda en el historial de la terminal:
+   ```bash
+   read -s "?Pega la clave sb_secret y presiona Enter: " K; echo; printf 'SUPABASE_URL=https://<ref>.supabase.co\nSUPABASE_SECRET_KEY=%s\n' "$K" > .env; unset K
    ```
-   SUPABASE_URL=https://<ref>.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=<clave service_role: Project Settings → API>
-   ```
+   `.env` está en `.gitignore`. **Nunca la compartas ni la pegues en un chat.**
 3. `npm install`. Si `ffmpeg` falla, instala el del sistema: `brew install ffmpeg`. El script usa primero
    `FFMPEG_PATH`, luego el `ffmpeg` del sistema y, por último, el binario de npm.
 4. Debe existir `../skool-audit/out/full-inventory.json` (lo genera `inventory.mjs`) y la sesión de Skool

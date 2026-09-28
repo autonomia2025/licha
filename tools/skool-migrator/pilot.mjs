@@ -61,9 +61,25 @@ const ffprobePath = process.env.FFPROBE_PATH || which('ffprobe') || ffprobeStati
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const mb = (b) => `${(b / 1048576).toFixed(1)} MB`;
 
-function run(bin, argv) {
+async function run(bin, argv) {
+  try {
+    return await runOnce(bin, argv);
+  } catch (e) {
+    if (!/SIGKILL|ENOEXEC|EAGAIN/.test(e.message)) throw e;
+    await sleep(2000);
+    return runOnce(bin, argv); // un reintento ante cierres transitorios del proceso
+  }
+}
+
+function runOnce(bin, argv) {
   return new Promise((resolve, reject) => {
-    const p = spawn(bin, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let p;
+    try {
+      p = spawn(bin, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+      return reject(e);
+    }
+    p.on('error', reject);
     let out = '';
     let err = '';
     p.stdout.on('data', (d) => (out += d));
@@ -112,10 +128,32 @@ function pickLessons(db) {
 // ------------------------------------------------------------------ Supabase
 async function supabaseClient() {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Faltan SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en .env (ver README).');
+  // Clave secreta nueva (sb_secret_…) o, por compatibilidad, la service_role (JWT) antigua.
+  const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!url || !key) throw new Error('Faltan SUPABASE_URL y SUPABASE_SECRET_KEY en .env (ver README).');
+  if (!/^(sb_secret_[A-Za-z0-9_-]+|eyJ[\w-]+\.[\w-]+\.[\w-]+)$/.test(key)) {
+    throw new Error(`La clave en .env no tiene un formato válido (empieza por "${key.slice(0, 6)}…", largo ${key.length}). Vuelve a crear .env (ver README).`);
+  }
   const { createClient } = await import('@supabase/supabase-js');
-  return { sb: createClient(url, key, { auth: { persistSession: false } }), url, key };
+  const sb = createClient(url, key, { auth: { persistSession: false } });
+  // Falla temprano (antes de descargar nada) si la clave o las tablas no están bien.
+  const probeDb = await sb.from('courses').select('id').limit(1);
+  if (probeDb.error) throw new Error(`Supabase rechazó la conexión: ${probeDb.error.message}`);
+  const probeBucket = await sb.storage.from(BUCKET).list('', { limit: 1 });
+  if (probeBucket.error) throw new Error(`No puedo acceder al bucket ${BUCKET}: ${probeBucket.error.message}`);
+  return { sb, url, key };
+}
+
+/** Comprueba que ffmpeg y ffprobe se pueden ejecutar; si no, explica cómo arreglarlo. */
+async function checkFfmpeg() {
+  for (const [name, bin] of [['ffmpeg', ffmpegPath], ['ffprobe', ffprobePath]]) {
+    try {
+      await run(bin, ['-version']);
+    } catch (e) {
+      throw new Error(`${name} no funciona en este equipo (${bin}): ${e.message.slice(0, 120)}\nInstálalo con: brew install ffmpeg   (y vuelve a ejecutar; el script usa el del sistema automáticamente)`);
+    }
+  }
+  console.log(`ffmpeg: ${ffmpegPath}\nffprobe: ${ffprobePath}`);
 }
 
 async function tusUpload({ url, key }, file, objectName, contentType) {
@@ -128,7 +166,8 @@ async function tusUpload({ url, key }, file, objectName, contentType) {
     const up = new tus.Upload(createReadStream(file), {
       endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: { authorization: `Bearer ${key}`, 'x-upsert': 'true' },
+      // Las claves nuevas (sb_secret_) van solo en "apikey"; la service_role antigua (JWT) también en Authorization.
+      headers: { apikey: key, ...(key.startsWith('eyJ') ? { authorization: `Bearer ${key}` } : {}), 'x-upsert': 'true' },
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       chunkSize: 6 * 1024 * 1024, // Supabase exige exactamente 6 MB
@@ -340,6 +379,7 @@ async function main() {
   const lessons = pickLessons(db);
   if (!lessons.length) throw new Error('No encontré lecciones válidas en el inventario.');
   if (lessons.length > MAX_LESSONS) throw new Error(`El piloto admite como máximo ${MAX_LESSONS} lecciones.`);
+  await checkFfmpeg();
   const supa = UPLOAD ? await supabaseClient() : null;
   console.log(`Piloto: ${lessons.length} lecciones · subida a Supabase: ${UPLOAD ? 'sí' : 'no'}`);
 
