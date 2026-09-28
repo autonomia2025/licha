@@ -138,7 +138,10 @@ async function readNextData(page) {
 async function looksLoggedOut(page) {
   const u = page.url();
   if (/\/(login|signup)/.test(u)) return true;
-  return page.evaluate(() => Boolean(document.querySelector('input[type="password"]')));
+  return page.evaluate(() =>
+    Boolean(document.querySelector('input[type="password"]')) ||
+    [...document.querySelectorAll('a,button')].some((e) => /^(log ?in|iniciar sesi[oó]n|sign up|join group)$/i.test((e.textContent || '').trim())),
+  );
 }
 
 async function domInventory(page) {
@@ -313,16 +316,37 @@ async function main() {
   ctx.on('response', (r) => onResponse(r).catch(() => {}));
   const page = ctx.pages()[0] ?? (await ctx.newPage());
 
-  // 1) Sesión
-  await page.goto(`${ORIGIN}/${GROUP}/classroom`, { waitUntil: 'domcontentloaded' });
-  await sleep(2500);
-  if (await looksLoggedOut(page)) {
-    if (args.headless === true) throw new Error('No hay sesión en el perfil. Ejecuta primero sin --headless e inicia sesión.');
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    await rl.question('\n>>> Inicia sesión en Skool en la ventana del navegador y luego presiona Enter aquí… ');
-    rl.close();
+  // 1) Sesión + 2) listado de cursos. Si no se ven cursos, se asume que falta iniciar sesión
+  //    (Skool puede mostrar la página pública del grupo sin formulario de login).
+  const readClassroom = async () => {
     await page.goto(`${ORIGIN}/${GROUP}/classroom`, { waitUntil: 'domcontentloaded' });
-    await sleep(2500);
+    await sleep(3500);
+    const nd = await readNextData(page);
+    let json = null;
+    try {
+      json = nd.next_data ? JSON.parse(nd.next_data) : null;
+    } catch {}
+    const list = json ? findCourseList(json) : [];
+    const dom = await page.evaluate((g) => [...new Set([...document.querySelectorAll(`a[href*="/${g}/classroom/"]`)].map((a) => new URL(a.href).pathname))], GROUP);
+    return { nd, json, list, dom, loggedOut: await looksLoggedOut(page) };
+  };
+
+  let cr = await readClassroom();
+  for (let attempt = 1; (cr.loggedOut || (!cr.list.length && !cr.dom.length)) && attempt <= 3; attempt++) {
+    if (args.headless === true) throw new Error('No se ven cursos: no hay sesión en el perfil. Ejecuta sin --headless e inicia sesión.');
+    console.log(`\nNo veo cursos en ${redactUrl(page.url())} (título: "${cr.nd.title}").`);
+    console.log('En la ventana de Chromium que se abrió (NO la cierres):');
+    console.log('  1. Inicia sesión en Skool.');
+    console.log(`  2. Entra a https://www.skool.com/${GROUP}/classroom y comprueba que ves los cursos.`);
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    await rl.question(`>>> Cuando veas los cursos, presiona Enter aquí (intento ${attempt}/3)… `);
+    rl.close();
+    cr = await readClassroom();
+  }
+  if (!cr.list.length && !cr.dom.length) {
+    console.warn('\nSigo sin ver cursos. Genero el informe igualmente con datos de diagnóstico; compártelo.');
+  } else {
+    console.log(`\nSesión OK. Cursos detectados: JSON=${cr.list.length}, enlaces=${cr.dom.length}\n`);
   }
 
   const cookies = (await ctx.cookies()).filter((c) => /skool/.test(c.domain));
@@ -338,15 +362,14 @@ async function main() {
     })),
   };
 
-  // 2) Listado de cursos
-  const classroomND = await readNextData(page);
-  let classroomJson = null;
-  try {
-    classroomJson = classroomND.next_data ? JSON.parse(classroomND.next_data) : null;
-  } catch {}
-  const courses = classroomJson ? findCourseList(classroomJson) : [];
-  const classroomDom = await page.evaluate((g) => [...new Set([...document.querySelectorAll(`a[href*="/${g}/classroom/"]`)].map((a) => new URL(a.href).pathname))], GROUP);
+  const classroomND = cr.nd;
+  const classroomJson = cr.json;
+  const courses = cr.list;
+  const classroomDom = cr.dom;
   const classroom = {
+    final_url: redactUrl(page.url()),
+    page_title: classroomND.title,
+    logged_out_signals: cr.loggedOut,
     next_data_present: Boolean(classroomND.next_data),
     app_router_flight: classroomND.has_app_router_flight,
     build_id_present: Boolean(classroomJson?.buildId),
@@ -557,7 +580,7 @@ function renderReport(inv) {
   for (const [k, v] of Object.entries(inv.safety.blocked_summary)) L.push(`  - ${k}: ${v}`);
   L.push('', '## Autenticación (solo nombres y atributos, sin valores)', '', '| cookie | dominio | HttpOnly | expira (días) | JWT |', '|---|---|---|---|---|');
   for (const c of inv.auth.cookies) L.push(`| ${c.name} | ${c.domain} | ${yes(c.http_only)} | ${c.expires_in_days} | ${yes(c.looks_like_jwt)} |`);
-  L.push('', '## Classroom', '', `- \`__NEXT_DATA__\` presente: ${yes(inv.classroom.next_data_present)}`, `- Cursos en JSON: ${inv.classroom.courses_in_json} · enlaces de curso en DOM: ${inv.classroom.course_links_in_dom}`, `- Claves de pageProps: ${inv.classroom.page_props_keys.join(', ') || '—'}`);
+  L.push('', '## Classroom', '', `- URL final: ${inv.classroom.final_url} · título: "${inv.classroom.page_title}" · señales de sesión cerrada: ${yes(inv.classroom.logged_out_signals)}`, `- \`__NEXT_DATA__\` presente: ${yes(inv.classroom.next_data_present)}`, `- Cursos en JSON: ${inv.classroom.courses_in_json} · enlaces de curso en DOM: ${inv.classroom.course_links_in_dom}`, `- Claves de pageProps: ${inv.classroom.page_props_keys.join(', ') || '—'}`);
   if (inv.next_data_endpoint) L.push(`- Endpoint \`/_next/data\`: ${JSON.stringify(inv.next_data_endpoint)}`);
   L.push('');
   for (const c of inv.courses) {
@@ -601,6 +624,10 @@ function renderReport(inv) {
 }
 
 main().catch((e) => {
+  if (/has been closed|Target closed/i.test(String(e?.message))) {
+    console.error('\nSe cerró la ventana del navegador antes de terminar. Vuelve a ejecutar el comando y deja la ventana abierta.');
+    process.exit(1);
+  }
   console.error(e);
   process.exit(1);
 });
