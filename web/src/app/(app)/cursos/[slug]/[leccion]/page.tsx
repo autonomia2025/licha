@@ -72,7 +72,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
       <div className="mt-6 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted" aria-label="Ruta">
-            <Link href={`/cursos/${course.slug}`} className="transition hover:text-ink">
+            <Link href={`/cursos/${course.slug}`} className="link-underline transition hover:text-ink">
               {splitEmoji(course.title).text}
             </Link>
             <span className="text-white/20">/</span>
@@ -182,7 +182,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
                         <span className={`line-clamp-2 leading-snug ${current ? "font-medium" : ""}`}>{l.title}</span>
                         <span className="mt-1 flex items-center gap-2 text-xs text-subtle">
                           {l.durationMs ? <span className="tabular-nums">{formatClock(l.durationMs)}</span> : null}
-                          {l.kind === "video" && !l.videoReady ? <span className="serif text-[13px] text-muted">próximamente</span> : null}
+                          {l.kind === "video" && !l.videoReady ? <span className="inline-flex items-center gap-1 text-white/35" title="Próximamente"><span className="size-1 rounded-full bg-white/35" />pronto</span> : null}
                           {l.kind === "texto" ? <span>Lectura</span> : null}
                         </span>
                       </span>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, CheckCircle2, Clock, Play } from "lucide-react";
 import { ActivityCard } from "@/components/Activity";
+import { CountUp } from "@/components/CountUp";
 import { CourseCard, LessonThumb, ProgressBar, StatusChip } from "@/components/ui";
 import { allLessons, courseProgress, getContinue, getLibrary, getProgress, getViewer, signPaths } from "@/lib/data";
 import { formatClock, formatDuration, greeting, splitEmoji } from "@/lib/format";
@@ -94,9 +95,9 @@ export default async function HomePage() {
       </section>
 
       <section className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 animate-fade-up [animation-delay:260ms]">
-        <Stat icon={<CheckCircle2 className="size-5" />} label="Clases completadas" value={`${completed.length}`} hint={`de ${lessons.length}`} />
+        <Stat icon={<CheckCircle2 className="size-5" />} label="Clases completadas" value={<CountUp value={completed.length} />} hint={`de ${lessons.length}`} />
         <Stat icon={<Clock className="size-5" />} label="Tiempo de estudio" value={formatDuration(watchedMs) || "0 min"} hint="" />
-        <Stat icon={<BookOpen className="size-5" />} label="Cursos en progreso" value={`${inProgress}`} hint={`de ${library.length}`} />
+        <Stat icon={<BookOpen className="size-5" />} label="Cursos en progreso" value={<CountUp value={inProgress} />} hint={`de ${library.length}`} />
       </section>
 
       <section className="mt-24">
@@ -124,7 +125,7 @@ export default async function HomePage() {
   );
 }
 
-function Stat({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint: string }) {
+function Stat({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: React.ReactNode; hint: string }) {
   return (
     <div className="card lift flex items-center gap-4 p-4 sm:p-5 [&:last-child]:col-span-2 sm:[&:last-child]:col-span-1">
       <span className="grid size-11 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white shadow-[inset_0_1px_0_#ffffff26]">{icon}</span>

@@ -25,7 +25,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
   return (
     <div>
       {/* Portada */}
-      <section className="relative overflow-hidden border-b border-line">
+      <section className="relative overflow-hidden">
         <div className="absolute inset-0 scale-110 opacity-50 blur-3xl" aria-hidden>
           <CourseCover course={course} src={course.coverPath ? signed[course.coverPath] : undefined} className="size-full" />
         </div>
@@ -137,6 +137,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                           <div className="hidden sm:block">
                             <StatusChip lesson={l} />
                           </div>
+                          <ArrowRight className="size-4 shrink-0 -translate-x-2 text-white/60 opacity-0 transition duration-300 group-hover/row:translate-x-0 group-hover/row:opacity-100" aria-hidden />
                         </Link>
                       </li>
                     );
