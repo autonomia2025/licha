@@ -8,3 +8,4 @@ tools/skool-audit/out/
 .env
 tools/skool-migrator/tmp/
 tools/skool-migrator/out/
+.vercel
