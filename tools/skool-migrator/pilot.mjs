@@ -20,6 +20,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createInterface } from 'node:readline/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ffmpegStatic from 'ffmpeg-static';
@@ -459,6 +460,37 @@ ${rows.join('\n')}`;
   return file;
 }
 
+// ------------------------------------------------------------------ sesión
+/** ¿La lección entrega su video? (solo pasa con la sesión iniciada y acceso al curso) */
+async function lessonHasVideo(page, l) {
+  await page.goto(l.lesson_url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+  await sleep(2000);
+  return page.evaluate(() => {
+    try {
+      const pp = JSON.parse(document.getElementById('__NEXT_DATA__').textContent).props.pageProps;
+      return Boolean(pp.video?.playbackId || pp.renderData?.video?.playbackId);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** Antes de empezar: si no hay sesión de Skool, espera a que el usuario inicie sesión en la ventana. */
+async function ensureSession(page, first) {
+  if (!first) return;
+  for (let attempt = 1; ; attempt++) {
+    if (await lessonHasVideo(page, first)) {
+      console.log('Sesión de Skool OK ✓');
+      return;
+    }
+    if (args.headless === true || attempt > 3) throw new Error('Sin sesión de Skool: ejecuta sin --headless e inicia sesión en la ventana de Chrome.');
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    await page.goto(`${START.origin}/login`).catch(() => {});
+    await rl.question(`\n>>> Inicia sesión en Skool en la ventana de Chrome y, cuando veas tus cursos, presiona Enter aquí (intento ${attempt}/3)… `);
+    rl.close();
+  }
+}
+
 // ------------------------------------------------------------------ main
 async function main() {
   const db = JSON.parse(await readFile(INVENTORY, 'utf8'));
@@ -500,8 +532,10 @@ async function main() {
   // La página no reproduce nada: el reproductor no descarga segmentos por su cuenta.
   await ctx.route('**/*', (route) => (route.request().resourceType() === 'media' ? route.abort() : route.continue()));
   const page = ctx.pages()[0] ?? (await ctx.newPage());
+  await ensureSession(page, lessons[0]);
 
   const results = [];
+  let noAccessStreak = 0;
   let stoppedByBudget = false;
   let skippedBig = 0;
   for (const l of lessons) {
@@ -528,6 +562,7 @@ async function main() {
     console.log(`\n▶ ${l.course} ${l.module_position}.${l.position} ${l.title}`);
     try {
       const r = await migrateLesson(ctx, page, l, supa, db);
+      noAccessStreak = 0;
       results.push(r);
       usedBytes += r.size;
       console.log(`    listo en ${r.seconds} s${ALL ? ` · usado ≈ ${mb(usedBytes)}` : ''}`);
@@ -539,6 +574,12 @@ async function main() {
         continue;
       }
       console.log(`    ✗ ${e.message}`);
+      // Varias seguidas sin acceso = la sesión se cerró: parar en vez de marcar todo como fallido.
+      noAccessStreak = e.message.includes('sin acceso') ? noAccessStreak + 1 : 0;
+      if (noAccessStreak >= 3) {
+        console.log('\n■ Tres clases seguidas sin acceso: la sesión de Skool parece cerrada. Vuelve a ejecutar e inicia sesión.');
+        break;
+      }
       if (supa) await supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', status: 'failed', error: String(e.message).slice(0, 500), updated_at: new Date().toISOString() });
     }
   }
