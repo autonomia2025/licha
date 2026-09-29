@@ -14,7 +14,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             Marcas que <em>escalan</em>.
           </h1>
           <p className="mt-8 max-w-md animate-fade-up text-lg leading-relaxed text-muted [animation-delay:90ms]">
-            El programa completo de Evolve para llevar tu e-commerce al siguiente nivel, <em className="serif text-[1.15em] text-ink">clase por clase</em>.
+            El programa completo del Estudio de Licha para llevar tu e-commerce al siguiente nivel, <em className="serif text-[1.15em] text-ink">clase por clase</em>.
           </p>
         </div>
         <div className="flex animate-fade-up items-center gap-6 text-sm text-subtle [animation-delay:120ms]">
@@ -26,7 +26,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <span className="serif text-2xl text-ink">+700</span> clases
           </span>
           <span className="h-4 w-px bg-white/15" />
-          <span>© {new Date().getFullYear()} Evolve</span>
+          <span>© {new Date().getFullYear()} Estudio de Licha</span>
         </div>
       </section>
       <section className="flex items-center justify-center px-5 py-16">

@@ -102,7 +102,7 @@ export default async function HomePage() {
             <h2 className="display mt-3 text-4xl sm:text-5xl">
               Tus <em>cursos</em>
             </h2>
-            <p className="mt-1 text-sm text-muted">Todo el programa Evolve, ordenado para que avances paso a paso.</p>
+            <p className="mt-1 text-sm text-muted">Todo el programa, ordenado para que avances paso a paso.</p>
           </div>
           <Link href="/cursos" className="btn btn-ghost hidden h-10 text-sm sm:inline-flex">
             Ver todos <ArrowRight className="size-4" aria-hidden />

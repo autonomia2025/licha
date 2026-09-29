@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <>
       <AppHeader viewer={viewer} demo={isDemo} items={items} />
       <main className="flex-1">{children}</main>
-      <footer className="border-t border-line/60 py-8 text-center text-xs text-subtle">© {new Date().getFullYear()} Evolve · Área de alumnos</footer>
+      <footer className="border-t border-line/60 py-8 text-center text-xs text-subtle">© {new Date().getFullYear()} Estudio de Licha · Área de alumnos</footer>
     </>
   );
 }

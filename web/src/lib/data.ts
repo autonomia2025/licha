@@ -12,7 +12,7 @@ const BUCKET = "course-media";
 // ------------------------------------------------------------------ sesión
 
 export const getViewer = cache(async (): Promise<Viewer | null> => {
-  if (isDemo) return { email: "alumno@evolve.demo", name: "Alumno" };
+  if (isDemo) return { email: "alumno@estudiodelicha.demo", name: "Alumno" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user?.email) return null;

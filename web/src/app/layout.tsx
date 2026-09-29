@@ -16,7 +16,7 @@ const instrument = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Evolve · Área de alumnos", template: "%s · Evolve" },
+  title: { default: "Estudio de Licha · Área de alumnos", template: "%s · Estudio de Licha" },
   description: "Tu formación para escalar tu e-commerce con anuncios que venden.",
   robots: { index: false, follow: false },
 };

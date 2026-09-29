@@ -8,10 +8,10 @@ export function Logo({ className = "" }: { className?: string }) {
   return (
     <span className={`group/logo inline-flex items-center gap-2.5 text-ink ${className}`}>
       <span className="grid size-8 place-items-center rounded-full bg-ink text-bg shadow-[0_0_24px_-4px_#ffffff80] transition-transform duration-300 ease-[var(--ease-out)] group-hover/logo:rotate-[12deg]">
-        <span className="serif text-lg leading-none">e</span>
+        <span className="serif text-lg leading-none">L</span>
       </span>
       <span className="text-[15px] font-semibold tracking-[-0.02em]">
-        Evolve<span className="serif ml-1 font-normal text-muted">academy</span>
+        Estudio<span className="serif ml-1 font-normal text-muted">de Licha</span>
       </span>
     </span>
   );
@@ -44,7 +44,7 @@ export function CourseCover({ course, src, className = "", large = false }: { co
             </span>
           </div>
           <span className="absolute bottom-4 left-5 text-[10px] font-medium tracking-[0.3em] text-white/45">
-            EVOLVE · <span className="serif text-[13px] tracking-normal text-white/70">curso {String(course.position).padStart(2, "0")}</span>
+            ESTUDIO · <span className="serif text-[13px] tracking-normal text-white/70">curso {String(course.position).padStart(2, "0")}</span>
           </span>
         </>
       )}
