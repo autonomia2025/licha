@@ -1,7 +1,7 @@
-tools
-docs
-supabase
-.skool-profile
+/tools
+/docs
+/supabase
+/.skool-profile
 **/node_modules
 **/.next
 **/.env*
