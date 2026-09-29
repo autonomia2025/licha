@@ -11,9 +11,14 @@ export default function NotFound() {
           No encontramos esta <em>página</em>
         </h1>
         <p className="mt-2 text-sm text-muted">Puede que la clase haya cambiado de lugar.</p>
-        <Link href="/" className="btn btn-primary mt-8">
-          Volver al inicio
-        </Link>
+        <div className="mt-8 flex flex-wrap justify-center gap-2">
+          <Link href="/" className="btn btn-primary">
+            Volver al inicio
+          </Link>
+          <Link href="/buscar" className="btn btn-ghost">
+            Buscar una clase
+          </Link>
+        </div>
       </div>
     </main>
   );

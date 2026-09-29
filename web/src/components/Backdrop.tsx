@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /** Fondo vivo (orbes de luz + grano) y brillo que sigue al cursor en el fondo y en las tarjetas de vidrio. */
 export function Backdrop() {
+  const spot = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let frame = 0;
     let last: PointerEvent | null = null;
@@ -11,9 +12,10 @@ export function Backdrop() {
       frame = 0;
       const e = last;
       if (!e) return;
-      const root = document.documentElement;
-      root.style.setProperty("--gx", `${e.clientX}px`);
-      root.style.setProperty("--gy", `${e.clientY}px`);
+      // Solo se escriben variables en el propio elemento del brillo y en la tarjeta bajo el cursor
+      // (escribirlas en <html> recalcularía estilos de toda la página en cada movimiento).
+      spot.current?.style.setProperty("--gx", `${e.clientX}px`);
+      spot.current?.style.setProperty("--gy", `${e.clientY}px`);
       const card = (e.target as Element | null)?.closest?.<HTMLElement>(".card");
       if (card) {
         const r = card.getBoundingClientRect();
@@ -39,7 +41,7 @@ export function Backdrop() {
       <div className="backdrop-orb" />
       <div className="backdrop-orb" />
       <div className="backdrop-grid" />
-      <div className="backdrop-spot" />
+      <div ref={spot} className="backdrop-spot" />
       <div className="backdrop-grain" />
     </div>
   );

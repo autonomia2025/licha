@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, CornerDownLeft, FileText, Home, PlayCircle, Search, ExternalLink } from "lucide-react";
+import { BookOpen, CornerDownLeft, FileText, Home, PlayCircle, Search, ExternalLink, SearchX } from "lucide-react";
+import { usePresence } from "@/lib/usePresence";
 
 export interface PaletteItem {
   id: string;
@@ -25,6 +26,7 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
+  const presence = usePresence(open, 180);
 
   const show = () => {
     setQ("");
@@ -84,19 +86,26 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
     <>
       <button
         onClick={show}
-        className="ml-auto hidden h-10 w-full max-w-xs items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm text-subtle transition duration-300 hover:border-white/25 hover:bg-white/[0.07] hover:text-muted md:flex"
+        className="ml-auto hidden h-10 w-full max-w-xs items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm text-subtle transition-[background-color,border-color,color,transform] duration-200 hover:border-white/25 hover:bg-white/[0.07] hover:text-muted active:scale-[0.98] md:flex"
       >
         <Search className="size-4" aria-hidden />
         <span className="flex-1 text-left">Buscar clases…</span>
         <kbd className="rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 font-mono text-[10.5px] text-muted">⌘K</kbd>
       </button>
-      <button onClick={show} className="ml-auto grid size-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-muted md:hidden" aria-label="Buscar">
+      <button onClick={show} className="icon-btn ml-auto size-10 border border-white/10 bg-white/[0.04] text-muted hover:bg-white/10 md:hidden" aria-label="Buscar">
         <Search className="size-4" />
       </button>
 
-      {open ? createPortal(
-        <div className="fixed inset-0 z-50 flex animate-fade items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Buscar clases" className="glass w-full max-w-2xl overflow-hidden bg-neutral-950/60 animate-pop shadow-[0_1px_0_0_#ffffff1f_inset,0_40px_120px_-20px_#000]" onMouseDown={(e) => e.stopPropagation()}>
+      {presence.mounted ? createPortal(
+        <div data-state={presence.state} className="overlay fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Buscar clases"
+            data-state={presence.state}
+            className="modal glass w-full max-w-2xl overflow-hidden bg-neutral-950/60 shadow-[0_1px_0_0_#ffffff1f_inset,0_40px_120px_-20px_#000]"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Search className="size-5 text-subtle" aria-hidden />
               <input
@@ -126,7 +135,13 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
               <kbd className="rounded-md border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-subtle">Esc</kbd>
             </div>
             <ul ref={list} className="scroll-thin max-h-[55vh] overflow-y-auto p-2" role="listbox">
-              {q && !rows.length ? <li className="px-4 py-10 text-center text-sm text-muted">Sin resultados para “{q}”.</li> : null}
+              {q && !rows.length ? (
+                <li className="flex animate-fade flex-col items-center px-4 py-10 text-center">
+                  <SearchX className="size-5 text-subtle" aria-hidden />
+                  <p className="mt-3 text-sm font-medium text-ink">Sin resultados para “{q}”</p>
+                  <p className="mt-1 text-xs text-subtle">Prueba con menos palabras o con el título original en inglés.</p>
+                </li>
+              ) : null}
               {rows.map((r, i) => {
                 const Icon = r.kind === "texto" ? FileText : r.kind === "externo" ? ExternalLink : r.kind === "video" ? PlayCircle : "icon" in r ? (r as { icon: typeof Home }).icon : Search;
                 const active = i === sel;
@@ -135,9 +150,9 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
                     <button
                       onMouseMove={() => setSel(i)}
                       onClick={() => go(r.href)}
-                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition duration-200 ${active ? "bg-white/[0.08]" : ""}`}
+                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors duration-100 active:bg-white/[0.12] ${active ? "bg-white/[0.08]" : ""}`}
                     >
-                      <span className={`grid size-9 shrink-0 place-items-center rounded-full transition duration-300 ${active ? "bg-white text-black shadow-[0_0_20px_-4px_#fff]" : "border border-white/10 bg-white/[0.04] text-muted"}`}>
+                      <span className={`grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-150 ${active ? "bg-white text-black shadow-[0_0_20px_-4px_#fff]" : "border border-white/10 bg-white/[0.04] text-muted"}`}>
                         <Icon className="size-4" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1">

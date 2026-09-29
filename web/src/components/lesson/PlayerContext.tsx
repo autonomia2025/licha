@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollBehavior } from "@/lib/motion";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 interface PlayerState {
@@ -26,7 +27,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!v) return;
     v.currentTime = Math.max(0, t);
     if (play) v.play().catch(() => {});
-    v.scrollIntoView({ behavior: "smooth", block: "center" });
+    v.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
   }, []);
   return <Ctx.Provider value={{ videoRef, time, setTime, hasVideo, setHasVideo, seek, theater, setTheater }}>{children}</Ctx.Provider>;
 }
@@ -46,7 +47,7 @@ export function LessonShell({ media, main, sidebar }: { media: ReactNode; main: 
       first.current = false;
       return;
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }, [theater]);
   // Un único árbol: el video nunca se vuelve a montar al cambiar de modo (no se pierde la reproducción).
   return (

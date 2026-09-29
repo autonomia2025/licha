@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import localFont from "next/font/local";
 import { Backdrop } from "@/components/Backdrop";
+import { Toaster } from "@/components/Toaster";
 import "./globals.css";
 
 const instrument = localFont({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="relative min-h-full flex flex-col">
         <Backdrop />
         {children}
+        <Toaster />
       </body>
     </html>
   );

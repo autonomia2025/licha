@@ -43,7 +43,7 @@ export function LessonTabs({
       <div ref={bar} role="tablist" aria-label="Contenido de la clase" className="glass scroll-thin relative isolate flex w-fit max-w-full gap-1 overflow-x-auto rounded-full p-1">
         {pill ? (
           <span
-            className="absolute inset-y-1 -z-10 rounded-full bg-white shadow-[0_0_24px_-6px_#fff] transition-[left,width] duration-500 [transition-timing-function:var(--ease-out-expo)]"
+            className="absolute inset-y-1 -z-10 rounded-full bg-white shadow-[0_0_24px_-6px_#fff] transition-[left,width] duration-200 ease-[var(--ease-out)]"
             style={{ left: pill.left, width: pill.width }}
             aria-hidden
           />
@@ -57,7 +57,7 @@ export function LessonTabs({
               aria-selected={on}
               data-tab={t.id}
               onClick={() => setActive(t.id)}
-              className={`relative flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition duration-300 ${on ? "text-black" : "text-muted hover:text-ink"} ${on && !pill ? "bg-white" : ""}`}
+              className={`relative flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200 active:scale-[0.97] ${on ? "text-black" : "text-muted hover:text-ink"} ${on && !pill ? "bg-white" : ""}`}
             >
               <t.icon className="size-4" aria-hidden />
               {t.label}

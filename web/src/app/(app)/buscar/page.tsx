@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, SearchX } from "lucide-react";
+import { EmptyState } from "@/components/States";
 import { KindIcon, StatusChip } from "@/components/ui";
 import { searchLessons } from "@/lib/data";
 import { formatClock, splitEmoji } from "@/lib/format";
 
 export const metadata = { title: "Buscar" };
+
+const SUGGESTIONS = ["ganchos", "testing", "UGC", "copy", "ofertas", "escalar"];
 
 export default async function SearchPage({ searchParams }: PageProps<"/buscar">) {
   const raw = (await searchParams).q;
@@ -12,32 +15,45 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
   const results = q ? await searchLessons(q) : [];
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <form action="/buscar" role="search" className="relative animate-fade-up">
-        <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-subtle" aria-hidden />
-        <input
-          name="q"
-          type="search"
-          defaultValue={q}
-          autoFocus
-          placeholder="¿Qué quieres aprender? Ej: ganchos, testing, UGC…"
-          aria-label="Buscar clases"
-          className="input h-14 rounded-full pl-12 pr-4 text-base"
-        />
-      </form>
-
-      {q ? (
-        <p className="mt-6 text-sm text-muted">
-          {results.length ? `${results.length} ${results.length === 1 ? "resultado" : "resultados"} para “${q}”` : `No encontramos clases para “${q}”. Prueba con otra palabra.`}
+    <div>
+      {q && results.length ? (
+        <p className="mt-6 text-sm text-muted" role="status">
+          {results.length} {results.length === 1 ? "resultado" : "resultados"} para “{q}”
         </p>
-      ) : (
-        <p className="mt-6 text-sm text-muted">Busca en todas las clases de todos los cursos, en español o por su título original.</p>
-      )}
+      ) : null}
+      {q && !results.length ? (
+        <EmptyState
+          icon={SearchX}
+          title={`No encontramos clases para “${q}”`}
+          className="mt-4"
+          action={SUGGESTIONS.map((s) => (
+            <Link key={s} href={`/buscar?q=${encodeURIComponent(s)}`} className="chip transition-colors duration-150 hover:border-white/30 hover:text-ink active:scale-95">
+              {s}
+            </Link>
+          ))}
+        >
+          Prueba con otra palabra, con menos palabras o con el título original en inglés. Algunas ideas:
+        </EmptyState>
+      ) : null}
+      {!q ? (
+        <EmptyState
+          icon={Search}
+          title="Busca en todo el programa"
+          className="mt-4"
+          action={SUGGESTIONS.map((s) => (
+            <Link key={s} href={`/buscar?q=${encodeURIComponent(s)}`} className="chip transition-colors duration-150 hover:border-white/30 hover:text-ink active:scale-95">
+              {s}
+            </Link>
+          ))}
+        >
+          Todas las clases de todos los cursos, en español o por su título original.
+        </EmptyState>
+      ) : null}
 
       <ul className="mt-4 space-y-2">
-        {results.slice(0, 60).map(({ course, lesson }) => (
-          <li key={lesson.id}>
-            <Link href={`/cursos/${course.slug}/${lesson.id}`} className="card flex items-center gap-4 p-4 transition hover:border-line-strong">
+        {results.slice(0, 60).map(({ course, lesson }, i) => (
+          <li key={lesson.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 6) * 30}ms` }}>
+            <Link href={`/cursos/${course.slug}/${lesson.id}`} className="card lift flex items-center gap-4 p-4">
               <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05] text-muted">
                 <KindIcon lesson={lesson} className="size-5" />
               </span>

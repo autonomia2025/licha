@@ -15,7 +15,7 @@ export function AppHeader({ viewer, demo, items }: { viewer: Viewer; demo: boole
         </div>
       ) : null}
       <StickyHeader>
-        <div className="glass mx-auto flex h-16 max-w-7xl items-center gap-4 rounded-full py-0 pl-5 pr-3 shadow-[0_1px_0_0_#ffffff14_inset,0_20px_50px_-20px_#000] transition-all duration-500 [transition-timing-function:var(--ease-out-expo)] group-data-[scrolled=true]/hdr:h-14 group-data-[scrolled=true]/hdr:max-w-5xl group-data-[scrolled=true]/hdr:bg-black/50">
+        <div className="glass mx-auto flex h-16 max-w-7xl items-center gap-4 rounded-full py-0 pl-5 pr-3 shadow-[0_1px_0_0_#ffffff14_inset,0_20px_50px_-20px_#000] transition-[background-color,box-shadow] duration-300 ease-[var(--ease-out)] group-data-[scrolled=true]/hdr:bg-black/55 group-data-[scrolled=true]/hdr:shadow-[0_1px_0_0_#ffffff14_inset,0_16px_40px_-16px_#000]">
           <Link href="/" aria-label="Inicio" className="shrink-0">
             <Logo />
           </Link>

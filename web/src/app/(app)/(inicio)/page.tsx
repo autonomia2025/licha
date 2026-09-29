@@ -26,10 +26,7 @@ export default async function HomePage() {
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <section className="animate-fade-up">
         <p className="eyebrow flex items-center gap-2">
-          <span className="relative flex size-1.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-60" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-white" />
-          </span>
+          <span className="size-1.5 rounded-full bg-white" aria-hidden />
           {greeting()}
         </p>
         <h1 className="display mt-4 text-5xl sm:text-7xl">
@@ -39,19 +36,17 @@ export default async function HomePage() {
           Cada clase te acerca a <em className="serif text-[1.15em] text-ink">anuncios que venden</em> y a una marca que escala.
         </p>
       </section>
-      <Marquee />
 
       {cont ? (
-        <section className="mt-10 animate-fade-up [animation-delay:120ms]">
+        <section className="mt-10 animate-fade-up [animation-delay:40ms]">
           <Link
             href={`/cursos/${cont.course.slug}/${cont.lesson.id}`}
             className="group card lift relative grid overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
           >
             <div className="relative">
-              <LessonThumb lesson={cont.lesson} src={cont.lesson.thumbnailPath ? signed[cont.lesson.thumbnailPath] : undefined} progress={cont.positionS && cont.lesson.durationMs ? (cont.positionS * 100000) / cont.lesson.durationMs : undefined} className="rounded-none transition duration-700 [transition-timing-function:var(--ease-out-expo)] group-hover:scale-[1.03] md:h-full md:aspect-auto md:min-h-80" />
-              <div className="absolute inset-0 grid place-items-center bg-gradient-to-r from-transparent via-transparent to-black/40 transition duration-500 group-hover:bg-black/20">
-                <span className="relative grid size-20 place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_50px_-10px_#000] backdrop-blur-xl transition duration-500 [transition-timing-function:var(--ease-spring)] group-hover:scale-110 group-hover:bg-white group-hover:text-black">
-                  <span className="absolute inset-0 animate-ping rounded-full border border-white/30 [animation-duration:2.4s]" aria-hidden />
+              <LessonThumb lesson={cont.lesson} src={cont.lesson.thumbnailPath ? signed[cont.lesson.thumbnailPath] : undefined} progress={cont.positionS && cont.lesson.durationMs ? (cont.positionS * 100000) / cont.lesson.durationMs : undefined} className="rounded-none transition-[scale] duration-300 ease-[var(--ease-out)] group-hover:scale-[1.02] md:h-full md:aspect-auto md:min-h-80" />
+              <div className="absolute inset-0 grid place-items-center bg-gradient-to-r from-transparent via-transparent to-black/40 transition-colors duration-200 group-hover:bg-black/20">
+                <span className="relative grid size-20 place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_50px_-10px_#000] backdrop-blur-xl transition-[scale,background-color,color] duration-200 ease-[var(--ease-out)] group-hover:scale-105 group-hover:bg-white group-hover:text-black">
                   <Play className="ml-1 size-7 fill-current" aria-hidden />
                 </span>
               </div>
@@ -90,11 +85,11 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section className="mt-4 animate-fade-up [animation-delay:200ms]">
+      <section className="mt-4 animate-fade-up [animation-delay:80ms]">
         <ActivityCard progress={progress} />
       </section>
 
-      <section className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 animate-fade-up [animation-delay:260ms]">
+      <section className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 animate-fade-up [animation-delay:120ms]">
         <Stat icon={<CheckCircle2 className="size-5" />} label="Clases completadas" value={<CountUp value={completed.length} />} hint={`de ${lessons.length}`} />
         <Stat icon={<Clock className="size-5" />} label="Tiempo de estudio" value={formatDuration(watchedMs) || "0 min"} hint="" />
         <Stat icon={<BookOpen className="size-5" />} label="Cursos en progreso" value={<CountUp value={inProgress} />} hint={`de ${library.length}`} />
@@ -139,22 +134,3 @@ function Stat({ icon, label, value, hint }: { icon: React.ReactNode; label: stri
   );
 }
 
-const WORDS = ["Anuncios", "que venden", "Copywriting", "con intención", "Testing", "sin adivinar", "Escala", "con cabeza", "Marcas", "que perduran"];
-
-/** Cinta infinita con palabras clave del programa, alternando sans y serif en cursiva. */
-function Marquee() {
-  const row = WORDS.map((w, i) => (
-    <span key={i} className={i % 2 ? "serif text-white/80" : "font-semibold tracking-[-0.03em] text-white/25"}>
-      {w}
-      <span className="mx-6 text-white/20">✦</span>
-    </span>
-  ));
-  return (
-    <div className="relative -mx-4 mt-12 overflow-hidden py-2 text-3xl sm:-mx-6 sm:text-4xl lg:-mx-8 [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]" aria-hidden>
-      <div className="flex w-max animate-[marquee_40s_linear_infinite] whitespace-nowrap hover:[animation-play-state:paused]">
-        <span className="flex">{row}</span>
-        <span className="flex">{row}</span>
-      </div>
-    </div>
-  );
-}

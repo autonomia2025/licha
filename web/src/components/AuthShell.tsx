@@ -7,17 +7,17 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       <section className="relative hidden flex-col justify-between p-12 lg:flex">
         <Logo className="animate-fade-up" />
         <div className="max-w-xl">
-          <p className="eyebrow animate-fade-up [animation-delay:80ms]">Área de alumnos</p>
-          <h1 className="display mt-6 animate-fade-up text-7xl [animation-delay:140ms] xl:text-8xl">
+          <p className="eyebrow animate-fade-up [animation-delay:30ms]">Área de alumnos</p>
+          <h1 className="display mt-6 animate-fade-up text-7xl [animation-delay:60ms] xl:text-8xl">
             Anuncios que <em className="shine">venden</em>.
             <br />
             Marcas que <em>escalan</em>.
           </h1>
-          <p className="mt-8 max-w-md animate-fade-up text-lg leading-relaxed text-muted [animation-delay:220ms]">
+          <p className="mt-8 max-w-md animate-fade-up text-lg leading-relaxed text-muted [animation-delay:90ms]">
             El programa completo de Evolve para llevar tu e-commerce al siguiente nivel, <em className="serif text-[1.15em] text-ink">clase por clase</em>.
           </p>
         </div>
-        <div className="flex animate-fade-up items-center gap-6 text-sm text-subtle [animation-delay:300ms]">
+        <div className="flex animate-fade-up items-center gap-6 text-sm text-subtle [animation-delay:120ms]">
           <span>
             <span className="serif text-2xl text-ink">14</span> cursos
           </span>
@@ -30,7 +30,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </section>
       <section className="flex items-center justify-center px-5 py-16">
-        <div className="glass w-full max-w-md animate-fade-up p-8 [animation-delay:120ms] sm:p-10">
+        <div className="glass w-full max-w-md animate-fade-up p-8 [animation-delay:60ms] sm:p-10">
           <Logo className="mb-10 lg:hidden" />
           {children}
         </div>

@@ -9,6 +9,7 @@ import { LessonShell, PlayerProvider } from "@/components/lesson/PlayerContext";
 import { LessonTabs } from "@/components/lesson/LessonTabs";
 import { Notes } from "@/components/lesson/Notes";
 import { Transcript } from "@/components/lesson/Transcript";
+import { LinkPending } from "@/components/LinkPending";
 import { DoneBadge, LessonThumb, ProgressBar, SerifTail, providerName } from "@/components/ui";
 import { allLessons, courseProgress, getLessonDetail, getNotes, getProgress, signPaths } from "@/lib/data";
 import { embedUrl } from "@/lib/embed";
@@ -127,7 +128,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
       <div className="mt-12 grid gap-3 sm:grid-cols-2">
         {d.prev ? (
           <Link href={hrefOf(d.prev)} className="card lift group flex items-center gap-3 p-5">
-            <ArrowLeft className="size-5 shrink-0 text-subtle transition group-hover:-translate-x-0.5 group-hover:text-ink" aria-hidden />
+            <ArrowLeft className="size-5 shrink-0 text-subtle transition-[translate,color] duration-200 group-hover:-translate-x-0.5 group-hover:text-ink" aria-hidden />
             <div className="min-w-0">
               <p className="serif text-base text-subtle">Anterior</p>
               <p className="truncate text-sm font-medium">{d.prev.title}</p>
@@ -142,7 +143,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
               <p className="serif text-base text-subtle">Siguiente</p>
               <p className="truncate text-sm font-medium">{d.next.title}</p>
             </div>
-            <ArrowRight className="size-5 shrink-0 text-subtle transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden />
+            <ArrowRight className="size-5 shrink-0 text-subtle transition-[translate,color] duration-200 group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden />
           </Link>
         ) : null}
       </div>
@@ -175,7 +176,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
                     <Link
                       href={hrefOf(l)}
                       aria-current={current ? "page" : undefined}
-                      className={`relative flex items-start gap-3 px-5 py-3 text-sm transition duration-300 ${current ? "bg-white/[0.08] text-ink before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-white before:shadow-[0_0_10px_#fff]" : "text-muted hover:bg-white/[0.04] hover:text-ink"}`}
+                      className={`row relative flex items-start gap-3 px-5 py-3 text-sm ${current ? "bg-white/[0.08] text-ink before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-white before:shadow-[0_0_10px_#fff]" : "text-muted hover:text-ink"}`}
                     >
                       <DoneBadge entry={progress.get(l.id)} />
                       <span className="min-w-0 flex-1">
@@ -186,6 +187,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
                           {l.kind === "texto" ? <span>Lectura</span> : null}
                         </span>
                       </span>
+                      <LinkPending arrow={false} className="mt-0.5" />
                     </Link>
                   </li>
                 );
@@ -211,7 +213,7 @@ function ComingSoon({ lesson, thumb, external }: { lesson: Lesson; thumb?: strin
       <div className="absolute inset-0 grid place-items-center bg-black/30 p-6 backdrop-blur-md">
         <div className="max-w-md text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-full border border-white/20 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40] backdrop-blur-xl">
-            <Sparkles className="size-5 animate-pulse" aria-hidden />
+            <Sparkles className="size-5" aria-hidden />
           </span>
           <p className="display mt-5 text-3xl">{external ? <>Video <em>externo</em></> : <>Muy <em>pronto</em></>}</p>
           <p className="mt-2 text-sm text-muted">

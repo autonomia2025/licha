@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   ArrowRight,
   Captions,
   CaptionsOff,
@@ -23,6 +24,7 @@ import {
 import { saveProgress, setCompleted } from "@/app/actions";
 import { formatClock } from "@/lib/format";
 import { usePlayer } from "./lesson/PlayerContext";
+import { usePresence } from "@/lib/usePresence";
 
 interface Props {
   lessonId: string;
@@ -80,7 +82,6 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
   const router = useRouter();
 
   const [playing, setPlaying] = useState(false);
-  const [started, setStarted] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -98,6 +99,9 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
   const [countdown, setCountdown] = useState<number | null>(null);
   const [help, setHelp] = useState(false);
   const [toast, setToast] = useState<{ text: string; id: number } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const speedMenu = usePresence(speedOpen, 140);
+  const helpLayer = usePresence(help, 180);
 
   const flash = (text: string) => {
     setToast({ text, id: Date.now() });
@@ -197,7 +201,6 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
     };
     const onPlay = () => {
       setPlaying(true);
-      setStarted(true);
       setEnded(false);
     };
     const onPause = () => {
@@ -216,6 +219,10 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       setMuted(v.muted);
     };
     const onWaiting = () => setWaiting(true);
+    const onError = () => {
+      setFailed(true);
+      setWaiting(false);
+    };
     const onPlaying = () => setWaiting(false);
     const handlers: [string, () => void][] = [
       ["loadedmetadata", onMeta],
@@ -230,6 +237,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       ["waiting", onWaiting],
       ["playing", onPlaying],
       ["canplay", onPlaying],
+      ["error", onError],
     ];
     for (const [e, h] of handlers) v.addEventListener(e, h);
     if (v.readyState >= 1) onMeta();
@@ -334,14 +342,14 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
     liftCues(videoRef.current, showControls);
   }, [showControls, cc, duration, videoRef]);
   const iconBtn =
-    "grid size-9 place-items-center rounded-full text-white/85 transition duration-200 hover:bg-white/15 hover:text-white active:scale-90";
+    "icon-btn size-9 text-white/85 hover:bg-white/15 hover:text-white";
 
   return (
     <div
       ref={shell}
       onPointerMove={wake}
       onPointerLeave={() => playing && setIdle(true)}
-      className={`group/player relative isolate overflow-hidden bg-black ring-1 ring-white/10 transition-[border-radius] duration-500 ${
+      className={`group/player relative isolate overflow-hidden bg-black ring-1 ring-white/10 transition-[border-radius] duration-300 ${
         fullscreen ? "grid place-items-center" : theater ? "sm:rounded-2xl" : "rounded-3xl shadow-[0_40px_100px_-30px_#000]"
       } ${showControls ? "" : "cursor-none"}`}
     >
@@ -366,15 +374,39 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       </video>
 
       {/* Botón central */}
-      {!playing && !ended ? (
+      {/* Botón central: se desvanece al reproducir y vuelve al pausar (confirma la acción) */}
+      {!ended && !failed ? (
         <button
           onClick={togglePlay}
           aria-label="Reproducir"
-          className="absolute left-1/2 top-1/2 grid size-20 -translate-x-1/2 -translate-y-1/2 animate-pop place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_60px_-10px_#000] backdrop-blur-xl transition duration-500 [transition-timing-function:var(--ease-spring)] hover:scale-110 hover:bg-white hover:text-black sm:size-24"
+          tabIndex={playing ? -1 : 0}
+          aria-hidden={playing}
+          className={`absolute left-1/2 top-1/2 grid size-20 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_60px_-10px_#000] backdrop-blur-xl transition-[opacity,scale,background-color,color] duration-200 ease-[var(--ease-out)] hover:bg-white hover:text-black active:scale-95 sm:size-24 ${
+            playing ? "pointer-events-none scale-90 opacity-0" : "scale-100 opacity-100"
+          }`}
         >
-          {!started ? <span className="absolute inset-0 animate-ping rounded-full border border-white/30 [animation-duration:2.4s]" aria-hidden /> : null}
           <Play className="ml-1 size-8 fill-current" aria-hidden />
         </button>
+      ) : null}
+
+      {failed ? (
+        <div role="alert" className="absolute inset-0 z-20 grid animate-fade place-items-center bg-black/70 p-6 text-center backdrop-blur-xl">
+          <div className="max-w-xs animate-fade-up">
+            <AlertCircle className="mx-auto size-6 text-white/70" aria-hidden />
+            <p className="mt-3 font-semibold">No pudimos cargar el video</p>
+            <p className="mt-1 text-sm text-muted">Revisa tu conexión. Si llevas rato en la página, el enlace pudo expirar.</p>
+            <button
+              onClick={() => {
+                setFailed(false);
+                router.refresh(); // pide un enlace firmado nuevo
+                window.setTimeout(() => videoRef.current?.load(), 400);
+              }}
+              className="btn btn-primary btn-sm mt-5"
+            >
+              <RotateCw className="size-3.5" aria-hidden /> Reintentar
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {waiting && playing ? (
@@ -386,7 +418,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       {toast ? (
         <div
           key={toast.id}
-          className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-xl animate-pop"
+          className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 animate-pop rounded-full border border-white/15 bg-black/50 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-xl"
         >
           {toast.text}
         </div>
@@ -394,7 +426,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
 
       {/* Controles */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-3 pb-2.5 pt-16 transition duration-500 [transition-timing-function:var(--ease-out-expo)] sm:px-4 ${
+        className={`absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-3 pb-2.5 pt-16 transition-[opacity,translate] duration-200 ease-[var(--ease-out)] sm:px-4 ${
           showControls ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
         }`}
       >
@@ -419,7 +451,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
           }}
         >
           <div className={`relative w-full overflow-hidden rounded-full bg-white/20 transition-[height] duration-200 ${scrubbing ? "h-1.5" : "h-1 group-hover/bar:h-1.5"}`}>
-            <div className="absolute inset-y-0 left-0 bg-white/30 transition-[width] duration-500" style={{ width: `${buffered * 100}%` }} />
+            <div className="absolute inset-y-0 left-0 bg-white/30 transition-[width] duration-300" style={{ width: `${buffered * 100}%` }} />
             {hover ? <div className="absolute inset-y-0 left-0 bg-white/25" style={{ width: hover.x }} /> : null}
             <div className="absolute inset-y-0 left-0 rounded-full bg-white shadow-[0_0_12px_#fff]" style={{ width: `${pct}%` }} />
           </div>
@@ -473,7 +505,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                 v.muted = v.volume === 0;
                 store(VOL_KEY, e.target.value);
               }}
-              className="range-glass hidden w-0 opacity-0 transition-all duration-300 group-hover/vol:w-20 group-hover/vol:opacity-100 focus-visible:w-20 focus-visible:opacity-100 sm:block"
+              className="range-glass hidden w-0 opacity-0 transition-[width,opacity] duration-200 group-hover/vol:w-20 group-hover/vol:opacity-100 focus-visible:w-20 focus-visible:opacity-100 sm:block"
               style={{ ["--fill" as string]: `${(muted ? 0 : volume) * 100}%` }}
             />
           </div>
@@ -496,12 +528,12 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                 aria-haspopup="menu"
                 aria-expanded={speedOpen}
                 aria-label="Velocidad"
-                className="h-9 min-w-12 rounded-full px-2.5 font-mono text-xs font-semibold tabular-nums text-white/85 transition duration-200 hover:bg-white/15 hover:text-white active:scale-90"
+                className="icon-btn h-9 min-w-12 px-2.5 font-mono text-xs font-semibold tabular-nums text-white/85 hover:bg-white/15 hover:text-white aria-expanded:bg-white/15"
               >
                 {speed}x
               </button>
-              {speedOpen ? (
-                <div role="menu" className="absolute bottom-12 right-0 flex origin-bottom-right animate-pop flex-col gap-0.5 rounded-2xl border border-white/15 bg-black/70 p-1.5 shadow-2xl backdrop-blur-2xl">
+              {speedMenu.mounted ? (
+                <div role="menu" data-state={speedMenu.state} className="surface absolute bottom-12 right-0 flex origin-bottom-right flex-col gap-0.5 rounded-2xl border border-white/15 bg-black/70 p-1.5 shadow-2xl backdrop-blur-2xl">
                   {[...SPEEDS].reverse().map((s) => (
                     <button
                       key={s}
@@ -511,7 +543,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                         applySpeed(s);
                         setSpeedOpen(false);
                       }}
-                      className={`rounded-xl px-4 py-1.5 text-left font-mono text-xs font-semibold tabular-nums transition ${s === speed ? "bg-white text-black" : "text-white/75 hover:bg-white/10 hover:text-white"}`}
+                      className={`rounded-xl px-4 py-1.5 text-left font-mono text-xs font-semibold tabular-nums transition-colors duration-100 ${s === speed ? "bg-white text-black" : "text-white/75 hover:bg-white/10 hover:text-white"}`}
                     >
                       {s}x
                     </button>
@@ -525,7 +557,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
             </button>
             {!fullscreen ? (
               <button onClick={() => setTheater((t) => !t)} aria-label={theater ? "Salir del modo cine" : "Modo cine"} aria-pressed={theater} className={`${iconBtn} hidden lg:grid`}>
-                <RectangleHorizontal className={`size-[18px] transition-transform duration-300 ${theater ? "scale-x-125" : ""}`} />
+                <RectangleHorizontal className={`size-[18px] transition-transform duration-200 ${theater ? "scale-x-125" : ""}`} />
               </button>
             ) : null}
             <button onClick={toggleFullscreen} aria-label={fullscreen ? "Salir de pantalla completa" : "Pantalla completa"} className={iconBtn}>
@@ -549,8 +581,8 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                   </div>
                 ) : null}
                 <div className="mt-6 flex items-center justify-center gap-2">
-                  <Link href={next.href} className="btn btn-primary group/cta">
-                    Continuar <ArrowRight className="size-4 transition-transform duration-300 group-hover/cta:translate-x-0.5" aria-hidden />
+                  <Link href={next.href} className="btn btn-primary">
+                    Continuar <ArrowRight className="size-4" aria-hidden />
                   </Link>
                   {countdown !== null ? (
                     <button onClick={() => setCountdown(null)} className="btn btn-ghost">
@@ -573,7 +605,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                   videoRef.current.play().catch(() => {});
                 }
               }}
-              className="mx-auto mt-4 flex items-center gap-1.5 text-sm text-muted transition hover:text-ink"
+              className="mx-auto mt-4 flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-ink"
             >
               <RotateCcw className="size-3.5" aria-hidden /> Ver de nuevo
             </button>
@@ -581,9 +613,9 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
         </div>
       ) : null}
 
-      {help ? (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-black/60 p-6 backdrop-blur-2xl animate-fade" onClick={() => setHelp(false)}>
-          <div className="w-full max-w-md animate-pop" onClick={(e) => e.stopPropagation()}>
+      {helpLayer.mounted ? (
+        <div data-state={helpLayer.state} className="overlay absolute inset-0 z-20 grid place-items-center bg-black/60 p-6 backdrop-blur-2xl" onClick={() => setHelp(false)}>
+          <div role="dialog" aria-label="Atajos de teclado" data-state={helpLayer.state} className="modal w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <p className="serif mb-5 text-3xl text-white">Atajos de teclado</p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
               {[

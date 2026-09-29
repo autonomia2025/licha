@@ -3,6 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 import { setCompleted } from "@/app/actions";
+import { SwapLabel } from "./BtnContent";
+import { toast } from "./Toaster";
 
 async function celebrate() {
   const confetti = (await import("canvas-confetti")).default;
@@ -16,30 +18,34 @@ export function CompleteButton({ lessonId, completed, finishesCourse = false }: 
   const path = usePathname();
   const router = useRouter();
   const [pending, start] = useTransition();
+  // Optimista: el cambio se ve al instante; si el guardado falla se revierte y se avisa.
   const [done, setDone] = useOptimistic(completed);
-  return (
-    <button
-      onClick={() =>
-        start(async () => {
-          const next = !done;
-          setDone(next);
-          if (next && finishesCourse) celebrate();
-          await setCompleted(lessonId, next, path);
-          router.refresh();
-        })
+  const toggle = () =>
+    start(async () => {
+      const next = !done;
+      setDone(next);
+      if (next && finishesCourse) celebrate();
+      const ok = await setCompleted(lessonId, next, path).catch(() => false);
+      if (!ok) {
+        toast.error(next ? "No pudimos marcar la clase como completada." : "No pudimos desmarcar la clase.", { label: "Reintentar", onClick: toggle });
+        return;
       }
-      disabled={pending}
-      aria-pressed={done}
-      className={`btn ${done ? "btn-primary" : "btn-ghost"}`}
-    >
-      <span className={`grid size-5 place-items-center rounded-full transition duration-500 [transition-timing-function:var(--ease-spring)] ${done ? "scale-100 bg-black text-white" : "scale-90 border border-white/40"}`} aria-hidden>
+      router.refresh();
+    });
+  const label = done ? 0 : finishesCourse ? 2 : 1;
+  return (
+    <button onClick={toggle} aria-busy={pending} aria-pressed={done} className={`btn ${done ? "btn-primary" : "btn-ghost"}`}>
+      <span
+        className={`grid size-5 place-items-center rounded-full transition-[background-color,transform,border-color] duration-200 ${done ? "scale-100 bg-black text-white" : "scale-90 border border-white/40"}`}
+        aria-hidden
+      >
         {done ? (
           <svg viewBox="0 0 24 24" className="size-3" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12.5l4.5 4.5L19 7.5" strokeDasharray={24} style={{ animation: "check-draw 0.5s var(--ease-out-expo) 0.1s backwards" }} />
+            <path d="M5 12.5l4.5 4.5L19 7.5" strokeDasharray={24} style={{ animation: "check-draw 260ms var(--ease-out) 60ms backwards" }} />
           </svg>
         ) : null}
       </span>
-      {done ? "Completada" : finishesCourse ? "Completar curso 🎉" : "Marcar como completada"}
+      <SwapLabel active={label} labels={["Completada", "Marcar como completada", "Completar curso 🎉"]} />
     </button>
   );
 }

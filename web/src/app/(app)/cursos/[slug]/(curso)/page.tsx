@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ChevronDown, Clock, Layers, PlayCircle } from "lucide-react";
+import { LinkPending } from "@/components/LinkPending";
 import { CourseCover, DoneBadge, SerifTail, KindIcon, LessonThumb, ProgressBar, StatusChip } from "@/components/ui";
 import { allLessons, courseProgress, getCourse, getProgress, signPaths } from "@/lib/data";
 import { formatClock, formatDuration, plural, splitEmoji } from "@/lib/format";
@@ -71,7 +72,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
               </Link>
             ) : null}
           </div>
-          <CourseCover course={course} src={course.coverPath ? signed[course.coverPath] : undefined} large className="group hidden aspect-[16/10] rounded-3xl border border-white/10 shadow-[0_40px_100px_-30px_#000] md:block animate-fade-up [animation-delay:120ms] [transform:perspective(1200px)_rotateY(-8deg)_rotateX(3deg)] transition duration-700 hover:[transform:perspective(1200px)_rotateY(0)_rotateX(0)]" />
+          <CourseCover course={course} src={course.coverPath ? signed[course.coverPath] : undefined} large className="group hidden aspect-[16/10] rounded-3xl border border-white/10 shadow-[0_40px_100px_-30px_#000] md:block animate-fade-up [animation-delay:60ms]" />
         </div>
       </section>
 
@@ -95,7 +96,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
             const { emoji: me, text: mt } = splitEmoji(m.title);
             return (
               <details key={m.id} open={open} className="reveal group card overflow-hidden">
-                <summary className="flex cursor-pointer list-none items-center gap-4 p-5 transition hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+                <summary className="row flex cursor-pointer list-none items-center gap-4 p-5 [&::-webkit-details-marker]:hidden">
                   <span className="grid size-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-lg shadow-[inset_0_1px_0_#ffffff1f]">{me ?? <span className="serif text-lg text-muted">{mi + 1}</span>}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-subtle">
@@ -109,7 +110,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                     </p>
                     {ms ? <p className="mt-0.5 text-subtle">{formatDuration(ms)}</p> : null}
                   </div>
-                  <ChevronDown className="size-5 shrink-0 text-subtle transition duration-500 [transition-timing-function:var(--ease-out-expo)] group-open:rotate-180" aria-hidden />
+                  <ChevronDown className="size-5 shrink-0 text-subtle transition-transform duration-200 ease-[var(--ease-out)] group-open:rotate-180" aria-hidden />
                 </summary>
                 <ol className="border-t border-line">
                   {m.lessons.map((l) => {
@@ -119,10 +120,10 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                       <li key={l.id} className="border-b border-line/60 last:border-0">
                         <Link
                           href={`/cursos/${course.slug}/${l.id}`}
-                          className={`group/row flex items-center gap-4 px-5 py-3.5 transition duration-300 hover:bg-white/[0.04] ${isNext ? "bg-white/[0.06]" : ""}`}
+                          className={`row group/row flex items-center gap-4 px-5 py-3.5 ${isNext ? "bg-white/[0.06]" : ""}`}
                         >
                           <DoneBadge entry={entry} />
-                          <LessonThumb lesson={l} src={l.thumbnailPath ? signed[l.thumbnailPath] : undefined} progress={!entry?.completed && entry?.positionS && l.durationMs ? (entry.positionS * 100000) / l.durationMs : undefined} className="hidden w-28 shrink-0 transition duration-500 group-hover/row:scale-105 sm:block" />
+                          <LessonThumb lesson={l} src={l.thumbnailPath ? signed[l.thumbnailPath] : undefined} progress={!entry?.completed && entry?.positionS && l.durationMs ? (entry.positionS * 100000) / l.durationMs : undefined} className="hidden w-28 shrink-0 sm:block" />
                           <div className="min-w-0 flex-1">
                             <p className={`line-clamp-2 text-[15px] leading-snug ${entry?.completed ? "text-muted" : "text-ink"}`}>
                               <span className="mr-2 font-mono text-xs text-subtle">{String(l.number).padStart(2, "0")}</span>
@@ -137,7 +138,7 @@ export default async function CoursePage({ params }: PageProps<"/cursos/[slug]">
                           <div className="hidden sm:block">
                             <StatusChip lesson={l} />
                           </div>
-                          <ArrowRight className="size-4 shrink-0 -translate-x-2 text-white/60 opacity-0 transition duration-300 group-hover/row:translate-x-0 group-hover/row:opacity-100" aria-hidden />
+                          <LinkPending />
                         </Link>
                       </li>
                     );

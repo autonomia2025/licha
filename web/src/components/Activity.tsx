@@ -74,12 +74,11 @@ export function ActivityCard({ progress }: { progress: Map<string, ProgressEntry
           style={{ gridTemplateColumns: `repeat(${WEEKS}, minmax(0, 1fr))` }}
           aria-label="Actividad de las últimas semanas"
         >
-          {grid.flat().map((d, i) => (
+          {grid.flat().map((d) => (
             <span
               key={d.date}
               title={d.future ? "" : `${fmt(d.date)} · ${d.count ? `${d.count} ${d.count === 1 ? "clase" : "clases"}` : "sin actividad"}`}
-              style={{ animationDelay: `${i * 4}ms` }}
-              className={`aspect-square w-full animate-[fade_0.5s_ease_backwards] rounded-full transition duration-300 hover:scale-150 ${d.future ? "bg-transparent" : level(d.count)}`}
+              className={`aspect-square w-full rounded-full transition-[scale] duration-150 hover:scale-125 ${d.future ? "bg-transparent" : level(d.count)}`}
             />
           ))}
         </div>
@@ -103,8 +102,8 @@ export function ActivityCard({ progress }: { progress: Map<string, ProgressEntry
               fill="none"
               strokeWidth="6"
               strokeLinecap="round"
-              className="stroke-white drop-shadow-[0_0_6px_#fff] transition-[stroke-dashoffset] duration-1000"
-              style={{ animation: "ring-in 1.6s var(--ease-out-expo) backwards", ["--ring-from" as string]: c }}
+              className="stroke-white drop-shadow-[0_0_6px_#fff] transition-[stroke-dashoffset] duration-500"
+              style={{ animation: "ring-in 700ms var(--ease-out) 80ms backwards", ["--ring-from" as string]: c }}
               strokeDasharray={c}
               strokeDashoffset={c - (goalPct / 100) * c}
             />

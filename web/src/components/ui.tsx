@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FadeImg } from "./FadeImg";
 import { Check, Clock, FileText, Lock, PlayCircle, ExternalLink, Sparkles } from "lucide-react";
 import { formatClock, formatDuration, gradientFor, plural, splitEmoji } from "@/lib/format";
 import type { Course, Lesson, ProgressEntry } from "@/lib/types";
@@ -6,7 +7,7 @@ import type { Course, Lesson, ProgressEntry } from "@/lib/types";
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <span className={`group/logo inline-flex items-center gap-2.5 text-ink ${className}`}>
-      <span className="grid size-8 place-items-center rounded-full bg-ink text-bg shadow-[0_0_24px_-4px_#ffffff80] transition duration-500 group-hover/logo:rotate-[18deg]">
+      <span className="grid size-8 place-items-center rounded-full bg-ink text-bg shadow-[0_0_24px_-4px_#ffffff80] transition-transform duration-300 ease-[var(--ease-out)] group-hover/logo:rotate-[12deg]">
         <span className="serif text-lg leading-none">e</span>
       </span>
       <span className="text-[15px] font-semibold tracking-[-0.02em]">
@@ -19,7 +20,7 @@ export function Logo({ className = "" }: { className?: string }) {
 export function ProgressBar({ pct, className = "" }: { pct: number; className?: string }) {
   return (
     <div className={`h-1 w-full overflow-hidden rounded-full bg-white/10 ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-      <div className="bar-fill h-full rounded-full bg-gradient-to-r from-white/60 to-white shadow-[0_0_12px_#ffffffaa] transition-[width] duration-700" style={{ width: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }} />
+      <div className="bar-fill h-full rounded-full bg-gradient-to-r from-white/60 to-white shadow-[0_0_12px_#ffffffaa] transition-[width] duration-300 ease-[var(--ease-out)]" style={{ width: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }} />
     </div>
   );
 }
@@ -30,8 +31,7 @@ export function CourseCover({ course, src, className = "", large = false }: { co
   return (
     <div className={`relative overflow-hidden bg-surface-2 ${className}`} style={src ? undefined : { background: gradientFor(course.id) }}>
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+        <FadeImg src={src} className="absolute inset-0 size-full object-cover" />
       ) : (
         <>
           <div className="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:32px_32px]" aria-hidden />
@@ -39,7 +39,7 @@ export function CourseCover({ course, src, className = "", large = false }: { co
             {String(course.position).padStart(2, "0")}
           </span>
           <div className="absolute inset-0 grid place-items-center">
-            <span className={`grid place-items-center rounded-full border border-white/15 bg-white/[0.06] shadow-[inset_0_1px_0_#ffffff26,0_20px_40px_-12px_#000] backdrop-blur-xl transition duration-700 [transition-timing-function:var(--ease-out-expo)] group-hover:scale-110 ${large ? "size-28 text-5xl" : "size-20 text-4xl"}`} aria-hidden>
+            <span className={`grid place-items-center rounded-full border border-white/15 bg-white/[0.06] shadow-[inset_0_1px_0_#ffffff26,0_20px_40px_-12px_#000] backdrop-blur-xl transition-[scale] duration-300 ease-[var(--ease-out)] group-hover:scale-105 ${large ? "size-28 text-5xl" : "size-20 text-4xl"}`} aria-hidden>
               <span className="grayscale-[35%]">{emoji ?? "✦"}</span>
             </span>
           </div>
@@ -58,8 +58,7 @@ export function LessonThumb({ lesson, src, className = "", icon = true, progress
   return (
     <div className={`relative aspect-video overflow-hidden rounded-lg bg-surface-2 ${className}`} style={src ? undefined : { background: gradientFor(lesson.moduleId) }}>
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+        <FadeImg src={src} className="absolute inset-0 size-full object-cover" />
       ) : icon ? (
         <div className="absolute inset-0 grid place-items-center">
           <KindIcon lesson={lesson} className="size-6 text-white/70" />
@@ -111,7 +110,7 @@ export function CourseCard({ course, cover, progress }: { course: Course; cover?
   const started = progress.done > 0;
   return (
     <Link href={`/cursos/${course.slug}`} className="group card lift block overflow-hidden">
-      <CourseCover course={course} src={cover} className="aspect-[16/9] transition duration-700 group-hover:brightness-125" />
+      <CourseCover course={course} src={cover} className="aspect-[16/9] transition-[filter] duration-300 group-hover:brightness-110" />
       <div className="space-y-3 p-5">
         <h3 className="line-clamp-2 min-h-[2.75rem] text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">{splitEmoji(course.title).text}</h3>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">

@@ -24,7 +24,7 @@ export default async function CoursesPage() {
       </header>
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {library.map((c, i) => (
-          <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${120 + Math.min(i, 8) * 60}ms` }}>
+          <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 6) * 30}ms` }}>
             <CourseCard course={c} cover={c.coverPath ? signed[c.coverPath] : undefined} progress={courseProgress(c, progress)} />
           </div>
         ))}

@@ -63,15 +63,18 @@ export async function saveProgress(lessonId: string, positionS: number) {
   );
 }
 
-export async function setCompleted(lessonId: string, completed: boolean, path: string) {
+/** Marca o desmarca una clase. Devuelve false si no se pudo guardar (la UI revierte y avisa). */
+export async function setCompleted(lessonId: string, completed: boolean, path: string): Promise<boolean> {
   if (!isDemo) {
     const supabase = await createClient();
-    await supabase.from("lesson_progress").upsert(
+    const { error } = await supabase.from("lesson_progress").upsert(
       { lesson_id: lessonId, completed_at: completed ? new Date().toISOString() : null, updated_at: new Date().toISOString() },
       { onConflict: "user_id,lesson_id" },
     );
+    if (error) return false;
   }
   revalidatePath(path);
+  return true;
 }
 
 /** Guarda una nota del alumno (opcionalmente en un segundo del video). En demo no se persiste. */

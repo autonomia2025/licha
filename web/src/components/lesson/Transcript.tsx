@@ -1,7 +1,9 @@
 "use client";
 
+import { scrollBehavior } from "@/lib/motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, LocateFixed, Search } from "lucide-react";
+import { FileText, LocateFixed, RotateCw, Search, SearchX } from "lucide-react";
+import { EmptyState } from "@/components/States";
 import { usePlayer } from "./PlayerContext";
 import { formatClock } from "@/lib/format";
 
@@ -45,6 +47,7 @@ export function Transcript({ src }: { src: string | null }) {
   const { time, seek, hasVideo } = usePlayer();
   const [cues, setCues] = useState<Cue[] | null>(null);
   const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [q, setQ] = useState("");
   const [follow, setFollow] = useState(true);
   const box = useRef<HTMLDivElement>(null);
@@ -59,7 +62,7 @@ export function Transcript({ src }: { src: string | null }) {
     return () => {
       alive = false;
     };
-  }, [src]);
+  }, [src, attempt]);
 
   const activeIndex = useMemo(() => (cues ? cues.findIndex((c) => time >= c.start && time < c.end + 0.25) : -1), [cues, time]);
   const shown = useMemo(() => {
@@ -72,15 +75,49 @@ export function Transcript({ src }: { src: string | null }) {
   useEffect(() => {
     if (!follow || q || activeIndex < 0 || !box.current) return;
     const el = box.current.querySelector<HTMLElement>(`[data-i="${activeIndex}"]`);
-    if (el) box.current.scrollTo({ top: el.offsetTop - box.current.clientHeight / 3, behavior: "smooth" });
+    if (el) box.current.scrollTo({ top: el.offsetTop - box.current.clientHeight / 3, behavior: scrollBehavior() });
   }, [activeIndex, follow, q]);
 
-  if (!src) return <Empty text="Esta clase no tiene transcripción disponible todavía." />;
-  if (error) return <Empty text="No pudimos cargar la transcripción. Recarga la página para intentarlo de nuevo." />;
-  if (!cues)
+  if (!src) return <EmptyState icon={FileText} title="Sin transcripción por ahora" className="py-10">Esta clase todavía no tiene transcripción disponible.</EmptyState>;
+  if (error)
     return (
-      <div className="flex items-center gap-2 py-10 text-sm text-muted">
-        <Loader2 className="size-4 animate-spin" /> Cargando transcripción…
+      <EmptyState
+        icon={FileText}
+        title="No pudimos cargar la transcripción"
+        className="py-10"
+        action={
+          <button
+            onClick={() => {
+              setError(false);
+              setCues(null);
+              setAttempt((a) => a + 1);
+            }}
+            className="btn btn-ghost btn-sm"
+          >
+            <RotateCw className="size-3.5" aria-hidden /> Reintentar
+          </button>
+        }
+      >
+        Puede ser un problema de conexión pasajero.
+      </EmptyState>
+    );
+  if (!cues)
+    // Esqueleto con la misma forma: buscador + nota + frases con su minuto
+    return (
+      <div aria-busy="true" aria-label="Cargando transcripción">
+        <div className="flex gap-2">
+          <div className="skeleton h-10 flex-1 rounded-full" />
+          <div className="skeleton h-10 w-32 rounded-full" />
+        </div>
+        <div className="skeleton mt-3 h-3 w-64 rounded-full" />
+        <div className="glass mt-3 space-y-4 rounded-2xl p-5">
+          {[92, 78, 85, 64, 88, 72].map((w, i) => (
+            <div key={i} className="flex gap-3">
+              <div className="skeleton h-3.5 w-9 shrink-0 rounded-full" />
+              <div className="skeleton h-3.5 rounded-full" style={{ width: `${w}%` }} />
+            </div>
+          ))}
+        </div>
       </div>
     );
 
@@ -102,7 +139,7 @@ export function Transcript({ src }: { src: string | null }) {
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle" aria-hidden />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -112,7 +149,7 @@ export function Transcript({ src }: { src: string | null }) {
           />
         </div>
         {hasVideo ? (
-          <button onClick={() => setFollow((f) => !f)} className={`chip h-10 cursor-pointer px-3 ${follow ? "border-white/40 text-ink" : ""}`} aria-pressed={follow}>
+          <button onClick={() => setFollow((f) => !f)} className={`chip h-10 cursor-pointer px-3 transition-colors duration-150 active:scale-95 ${follow ? "border-white/40 text-ink" : ""}`} aria-pressed={follow}>
             <LocateFixed className="size-3.5" aria-hidden /> Seguir video
           </button>
         ) : null}
@@ -121,6 +158,11 @@ export function Transcript({ src }: { src: string | null }) {
         {q ? `${shown.length} ${shown.length === 1 ? "coincidencia" : "coincidencias"}` : "Transcripción en inglés · haz clic en una frase para ir a ese momento"}
       </p>
       <div ref={box} className="scroll-thin relative mt-3 max-h-[28rem] overflow-y-auto glass rounded-2xl p-2">
+        {q && !shown.length ? (
+          <EmptyState icon={SearchX} title={`Nada para “${q}”`} className="py-8">
+            Prueba con otra palabra (la transcripción está en inglés).
+          </EmptyState>
+        ) : null}
         {shown.map((c) => {
           const active = c.i === activeIndex;
           return (
@@ -129,7 +171,7 @@ export function Transcript({ src }: { src: string | null }) {
               data-i={c.i}
               onClick={() => seek(c.start)}
               disabled={!hasVideo}
-              className={`group flex w-full gap-3 rounded-xl px-3 py-2 text-left text-[15px] leading-relaxed transition duration-300 ${active ? "bg-white/[0.09] text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"} disabled:cursor-default`}
+              className={`group flex w-full gap-3 rounded-xl px-3 py-2 text-left text-[15px] leading-relaxed transition-colors duration-200 active:bg-white/[0.12] ${active ? "bg-white/[0.09] text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"} disabled:cursor-default`}
             >
               <span className={`mt-0.5 shrink-0 font-mono text-xs tabular-nums ${active ? "text-ink" : "text-subtle group-hover:text-ink"}`}>{formatClock(c.start * 1000) || "0:00"}</span>
               <span>{highlight(c.text)}</span>
@@ -139,8 +181,4 @@ export function Transcript({ src }: { src: string | null }) {
       </div>
     </div>
   );
-}
-
-function Empty({ text }: { text: string }) {
-  return <p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">{text}</p>;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /** Número que sube desde 0 al aparecer en pantalla. */
-export function CountUp({ value, duration = 1200 }: { value: number; duration?: number }) {
+export function CountUp({ value, duration = 600 }: { value: number; duration?: number }) {
   const [n, setN] = useState(0);
   const el = useRef<HTMLSpanElement>(null);
   useEffect(() => {
