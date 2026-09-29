@@ -322,11 +322,16 @@ async function migrateLessonInner(ctx, page, l, supa, db, dir) {
 
   // 3) Remux sin recodificar.
   const mp4 = path.join(dir, 'video.mp4');
+  const src = await probe(v.playlistPath);
+  const srcStart = src.start_s; // inicio del video HLS, para alinear subtítulos
+  // Algunas clases son solo audio (p. ej. versiones "podcast"): no hay pista de video que mapear.
+  const audioOnly = !src.video_codec;
+  if (audioOnly) console.log('    (clase solo audio: se guarda como MP4 sin imagen)');
   const inputs = ['-allowed_extensions', 'ALL', '-protocol_whitelist', 'file', '-i', v.playlistPath];
   if (a) inputs.push('-allowed_extensions', 'ALL', '-protocol_whitelist', 'file', '-i', a.playlistPath);
-  await run(ffmpegPath, ['-y', '-v', 'error', ...inputs, '-map', '0:v:0', '-map', a ? '1:a:0' : '0:a:0?', '-c', 'copy', '-movflags', '+faststart', mp4]);
+  const maps = audioOnly ? ['-map', a ? '1:a:0' : '0:a:0', '-vn'] : ['-map', '0:v:0', '-map', a ? '1:a:0' : '0:a:0?'];
+  await run(ffmpegPath, ['-y', '-v', 'error', ...inputs, ...maps, '-c', 'copy', '-movflags', '+faststart', mp4]);
   const info = await probe(mp4);
-  const srcStart = (await probe(v.playlistPath)).start_s; // inicio del video HLS, para alinear subtítulos
   const size = (await stat(mp4)).size;
   // La referencia es el propio stream (suma de segmentos). El videoLenMs de Skool a veces es de una
   // versión anterior del video: si no coincide solo se avisa.
