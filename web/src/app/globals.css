@@ -98,6 +98,30 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
+  /* Manito en todo lo clicable (Tailwind v4 dejó los <button> con cursor normal) */
+  button,
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"],
+  [role="option"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="slider"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  input[type="submit"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  [aria-busy="true"] {
+    cursor: progress;
+  }
   /* <details> que se abren y cierran con animación de altura */
   details::details-content {
     block-size: 0;

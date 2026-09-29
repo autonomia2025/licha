@@ -360,7 +360,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
           setSpeedOpen(false);
         }}
         onDoubleClick={toggleFullscreen}
-        className={`w-full bg-black ${fullscreen ? "max-h-screen" : "aspect-video"} ${theater && !fullscreen ? "max-h-[78vh]" : ""}`}
+        className={`w-full bg-black ${showControls ? "cursor-pointer" : ""} ${fullscreen ? "max-h-screen" : "aspect-video"} ${theater && !fullscreen ? "max-h-[78vh]" : ""}`}
         playsInline
         preload="metadata"
         poster={poster}
