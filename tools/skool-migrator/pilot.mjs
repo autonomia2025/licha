@@ -27,6 +27,7 @@ import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
 import { downloadRendition, parseMaster, pickAudio, pickBest, playlistDuration } from './lib/hls.mjs';
 import { mergeSegments } from './lib/vtt.mjs';
+import { r2FromEnv } from './lib/r2.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = Object.fromEntries(
@@ -43,8 +44,10 @@ const START = new URL(args.url);
 const ORIGIN = START.origin;
 const UPLOAD = args['no-upload'] !== true;
 const MAX_LESSONS = 5;
-// Límite por archivo del plan de Supabase (Free = 50 MB). Con plan Pro: --max-file-mb 0 (sin límite) o el que configures.
-const MAX_FILE_BYTES = Number(args['max-file-mb'] ?? 50) * 1048576;
+// Almacenamiento de los videos: Cloudflare R2 si está configurado en .env (sin límite por archivo);
+// si no, Supabase Storage (plan Free = 50 MB por archivo; con Pro: --max-file-mb 0).
+const R2 = r2FromEnv();
+const MAX_FILE_BYTES = Number(args['max-file-mb'] ?? (R2 ? 0 : 50)) * 1048576;
 const BUCKET = 'course-media';
 const STREAM_BASE = args['stream-base'] ?? 'https://stream.video.skool.com';
 const INVENTORY = path.resolve(here, args.inventory ?? '../skool-audit/out/full-inventory.json');
@@ -169,9 +172,14 @@ async function supabaseClient() {
   console.log('Comprobando conexión con Supabase…');
   const probeDb = await withTimeout(sb.from('courses').select('id').limit(1), 'tablas');
   if (probeDb.error) throw new Error(`Supabase rechazó la conexión: ${probeDb.error.message}`);
-  const probeBucket = await withTimeout(sb.storage.from(BUCKET).list('', { limit: 1 }), 'storage');
-  if (probeBucket.error) throw new Error(`No puedo acceder al bucket ${BUCKET}: ${probeBucket.error.message}`);
-  console.log('Supabase OK ✓');
+  if (R2) {
+    await withTimeout(R2.check(), 'Cloudflare R2');
+    console.log(`Supabase OK ✓ · videos → Cloudflare R2 (bucket ${R2.bucket}) ✓`);
+  } else {
+    const probeBucket = await withTimeout(sb.storage.from(BUCKET).list('', { limit: 1 }), 'storage');
+    if (probeBucket.error) throw new Error(`No puedo acceder al bucket ${BUCKET}: ${probeBucket.error.message}`);
+    console.log('Supabase OK ✓ · videos → Supabase Storage');
+  }
   return { sb, url, key };
 }
 
@@ -214,6 +222,31 @@ async function tusUpload({ url, key }, file, objectName, contentType) {
     up.start();
   });
 }
+
+/** Dónde se guardan los archivos: R2 (si está configurado) o Supabase Storage. */
+const store = {
+  name: () => (R2 ? 'Cloudflare R2' : 'Supabase Storage'),
+  async putFile(supa, file, key, contentType, cacheControl) {
+    const onProgress = (sent, total) => process.stdout.write(`\r      subiendo ${mb(sent)} / ${mb(total)}   `);
+    if (R2) {
+      await R2.putFile(file, key, contentType, { onProgress, cacheControl });
+      process.stdout.write('\n');
+    } else if (contentType === 'video/mp4') await tusUpload(supa, file, key, contentType);
+    else {
+      const up = await sbRetry(() => supa.sb.storage.from(BUCKET).upload(key, createReadStream(file), { contentType, upsert: true, duplex: 'half', ...(cacheControl ? { cacheControl } : {}) }), key);
+      if (up.error) throw new Error(`subida ${key}: ${up.error.message}`);
+    }
+  },
+  /** Tamaño guardado (para verificar la subida), o null si no existe. */
+  async size(supa, key) {
+    if (R2) return R2.size(key);
+    const dir = key.slice(0, key.lastIndexOf('/'));
+    const name = key.slice(key.lastIndexOf('/') + 1);
+    const folder = await sbRetry(() => supa.sb.storage.from(BUCKET).list(dir, { search: name }), 'verificación');
+    const obj = folder.data?.find((o) => o.name === name);
+    return obj ? Number(obj.metadata?.size) : null;
+  },
+};
 
 async function upsertStructure(sb, db, l) {
   const c = db.courses[l.course];
@@ -381,12 +414,10 @@ async function migrateLessonInner(ctx, page, l, supa, db, dir) {
     await upsertStructure(supa.sb, db, l);
     await sbRetry(() => supa.sb.from('lesson_videos').upsert({ lesson_id: l.id, provider: 'skool-mux', source_video_id: l.skool_video_id, playback_id: video.playbackId, status: 'processing', updated_at: new Date().toISOString() }), 'lesson_videos');
     if (MAX_FILE_BYTES && size > MAX_FILE_BYTES) throw new Error(`pendiente: el MP4 pesa ${mb(size)} y el plan admite ${mb(MAX_FILE_BYTES)} por archivo`);
-    await tusUpload(supa, mp4, result.videoPath, 'video/mp4');
+    await store.putFile(supa, mp4, result.videoPath, 'video/mp4');
     for (const t of tracks) {
       const p = `${base}/subtitles/${t.lang}.vtt`;
-      const body = await readFile(t.file);
-      const up = await sbRetry(() => supa.sb.storage.from(BUCKET).upload(p, body, { contentType: 'text/vtt', upsert: true }), 'subtítulos');
-      if (up.error) throw new Error(`subida ${p}: ${up.error.message}`);
+      await store.putFile(supa, t.file, p, 'text/vtt; charset=utf-8');
       const r = await sbRetry(() => supa.sb.from('lesson_subtitles').upsert(
         { lesson_id: l.id, language: t.lang, label: t.label, is_default: t.isDefault, cue_count: t.cueCount, storage_path: p, status: 'stored', updated_at: new Date().toISOString() },
         { onConflict: 'lesson_id,language' },
@@ -413,17 +444,18 @@ async function migrateLessonInner(ctx, page, l, supa, db, dir) {
       updated_at: new Date().toISOString(),
     }), 'lesson_videos');
     if (r.error) throw new Error(`lesson_videos: ${r.error.message}`);
-    // Verificación: el objeto existe en Storage con el tamaño esperado.
-    const folder = await sbRetry(() => supa.sb.storage.from(BUCKET).list(base, { search: 'video.mp4' }), 'verificación');
-    const obj = folder.data?.find((o) => o.name === 'video.mp4');
-    if (!obj || Number(obj.metadata?.size) !== size) throw new Error('Verificación de Storage falló (tamaño distinto o no existe)');
+    // Verificación: el objeto existe con el tamaño esperado.
+    if ((await store.size(supa, result.videoPath)) !== size) throw new Error(`Verificación en ${store.name()} falló (tamaño distinto o no existe)`);
     if (thumbOk) {
       const tp = `thumbs/${l.id}.jpg`;
-      const tb = await readFile(thumb);
-      const up = await sbRetry(() => supa.sb.storage.from(BUCKET).upload(tp, tb, { contentType: 'image/jpeg', upsert: true, cacheControl: '604800' }), 'miniatura');
-      if (!up.error) await sbRetry(() => supa.sb.from('lessons').update({ thumbnail_path: tp, duration_ms: Math.round(info.duration_s * 1000) }).eq('id', l.id), 'miniatura en lessons');
+      try {
+        await store.putFile(supa, thumb, tp, 'image/jpeg', 'public, max-age=604800');
+        await sbRetry(() => supa.sb.from('lessons').update({ thumbnail_path: tp, duration_ms: Math.round(info.duration_s * 1000) }).eq('id', l.id), 'miniatura en lessons');
+      } catch {
+        /* sin miniatura: la app usa un degradado */
+      }
     }
-    console.log('    Supabase: video, subtítulos y metadata guardados ✓');
+    console.log(`    ${store.name()}: video, subtítulos y metadata guardados ✓`);
   } else {
     // Sin subida: se conservan los archivos en out/ para revisarlos localmente.
     const keep = path.join(OUT, l.id);
@@ -443,8 +475,8 @@ async function writePlayer(results, supa) {
     let videoSrc;
     const trackSrcs = [];
     if (supa) {
-      videoSrc = (await supa.sb.storage.from(BUCKET).createSignedUrl(r.videoPath, 3600)).data?.signedUrl;
-      for (const t of r.tracks) trackSrcs.push({ ...t, src: (await supa.sb.storage.from(BUCKET).createSignedUrl(t.storagePath, 3600)).data?.signedUrl });
+      videoSrc = R2 ? R2.url(r.videoPath) : (await supa.sb.storage.from(BUCKET).createSignedUrl(r.videoPath, 3600)).data?.signedUrl;
+      for (const t of r.tracks) trackSrcs.push({ ...t, src: R2 ? R2.url(t.storagePath) : (await supa.sb.storage.from(BUCKET).createSignedUrl(t.storagePath, 3600)).data?.signedUrl });
     } else {
       videoSrc = `${r.lesson.id}/video.mp4`;
       for (const t of r.tracks) trackSrcs.push({ ...t, src: `${r.lesson.id}/${t.lang}.vtt` });
@@ -507,7 +539,8 @@ async function main() {
   let lessons;
   let knownBig = new Set();
   // Presupuesto de almacenamiento (modo --all): se detiene ANTES de pasarse.
-  const budgetBytes = Number(args['budget-gb'] ?? 0.95) * 1073741824;
+  // Con R2 los primeros 10 GB son gratis y luego ~US$0,015/GB al mes: el límite por defecto es holgado.
+  const budgetBytes = Number(args['budget-gb'] ?? (R2 ? 100 : 0.95)) * 1073741824;
   let usedBytes = 0;
   if (ALL) {
     if (!supa) throw new Error('--all requiere subir a Supabase (no uses --no-upload).');

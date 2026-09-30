@@ -61,6 +61,34 @@ node --env-file=.env pilot.mjs --url "https://www.skool.com/<grupo>/classroom" -
 - La duración se valida contra el propio stream; si el `videoLenMs` de Skool no coincide, solo se avisa.
 - Si un video no cabe en el presupuesto, sigue probando con los siguientes (más cortos) hasta llenarlo.
 
+## Videos en Cloudflare R2 (recomendado)
+
+Supabase queda solo para usuarios, tablas y progreso (plan gratis). Los videos, subtítulos e imágenes van a
+un bucket privado de **Cloudflare R2**: 10 GB gratis, luego ~US$0,015/GB al mes, y **sin costo por
+reproducciones**. Sin límite de 50 MB por archivo.
+
+1. Agrega a `.env` (además de las de Supabase):
+   ```
+   R2_ACCOUNT_ID=…
+   R2_ACCESS_KEY_ID=…
+   R2_SECRET_ACCESS_KEY=…
+   R2_BUCKET=estudio-de-licha-media
+   ```
+2. Copia a R2 lo que ya estaba en Supabase (mismas rutas; se puede repetir, salta lo ya copiado; también
+   configura CORS del bucket):
+   ```bash
+   node --env-file=.env move-to-r2.mjs
+   ```
+3. Configura las mismas 4 variables `R2_*` en Vercel y vuelve a desplegar: la app firma las URLs en R2.
+4. Revisa que los videos se vean en la app y luego libera Supabase:
+   ```bash
+   node --env-file=.env move-to-r2.mjs --delete
+   ```
+5. Sigue migrando: con `R2_*` en `.env`, `pilot.mjs --all` sube a R2 sin límite por archivo ni presupuesto de 1 GB:
+   ```bash
+   node --env-file=.env pilot.mjs --url "https://www.skool.com/<grupo>/classroom" --all
+   ```
+
 ## Pruebas
 
 `npm test`: parsers HLS y unión de WebVTT. `test/e2e-mock.mjs`: prueba de punta a punta contra un HLS

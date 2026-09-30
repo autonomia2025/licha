@@ -14,6 +14,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
+import { r2FromEnv } from './lib/r2.mjs';
 import { findCourseTree } from '../skool-audit/lib/tree.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +43,8 @@ if (!url || !key) {
   process.exit(1);
 }
 const sb = createClient(url, key, { auth: { persistSession: false } });
+// Imágenes a Cloudflare R2 si está configurado en .env; si no, a Supabase Storage.
+const R2 = r2FromEnv();
 
 async function retry(fn, what) {
   let r;
@@ -72,7 +75,8 @@ async function copyImage(ctx, src, dest) {
     const ext = { 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }[type] ?? 'jpg';
     const p = `${dest}.${ext}`;
     const buf = await r.body();
-    await retry(() => sb.storage.from(BUCKET).upload(p, buf, { contentType: type, upsert: true, cacheControl: '604800' }), `imagen ${p}`);
+    if (R2) await R2.putBuffer(p, buf, type, 'public, max-age=604800');
+    else await retry(() => sb.storage.from(BUCKET).upload(p, buf, { contentType: type, upsert: true, cacheControl: '604800' }), `imagen ${p}`);
     return p;
   } catch {
     return null;

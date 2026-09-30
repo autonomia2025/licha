@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient, isDemo } from "./supabase/server";
+import { r2Enabled, r2SignPaths } from "./r2";
 import { demoBodies, demoCourses, demoLessons, demoModules, demoProgress, demoVideos } from "./demo";
 import type { CourseRow, LessonRow, ModuleRow, ProgressRow, VideoRow } from "./rows";
 import type { Course, Lesson, LessonDetail, Module, ProgressEntry, VideoProvider, Viewer } from "./types";
@@ -206,6 +207,8 @@ export async function signPaths(paths: (string | null | undefined)[]): Promise<R
   const unique = [...new Set(paths.filter((p): p is string => Boolean(p)))];
   if (isDemo) return Object.fromEntries(unique.filter((p) => p.startsWith("/demo/")).map((p) => [p, p]));
   if (!unique.length) return {};
+  // Videos, subtítulos e imágenes en Cloudflare R2 (si está configurado); si no, en Supabase Storage.
+  if (r2Enabled()) return r2SignPaths(unique);
   const supabase = await createClient();
   const { data } = await supabase.storage.from(BUCKET).createSignedUrls(unique, 3600);
   return Object.fromEntries((data ?? []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl] as [string, string]] : [])));
