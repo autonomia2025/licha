@@ -39,7 +39,7 @@ export function CourseCover({ course, src, className = "", large = false }: { co
             {String(course.position).padStart(2, "0")}
           </span>
           <div className="absolute inset-0 grid place-items-center">
-            <span className={`grid place-items-center rounded-full border border-white/15 bg-white/[0.06] shadow-[inset_0_1px_0_#ffffff26,0_20px_40px_-12px_#000] backdrop-blur-xl transition-[scale] duration-300 ease-[var(--ease-out)] group-hover:scale-105 ${large ? "size-28 text-5xl" : "size-20 text-4xl"}`} aria-hidden>
+            <span className={`grid place-items-center rounded-full border border-white/15 bg-white/[0.06] shadow-[inset_0_1px_0_#ffffff26,0_20px_40px_-12px_#000] transition-[scale] duration-300 ease-[var(--ease-out)] group-hover:scale-105 ${large ? "size-28 text-5xl" : "size-20 text-4xl"}`} aria-hidden>
               <span className="grayscale-[35%]">{emoji ?? "✦"}</span>
             </span>
           </div>
@@ -65,7 +65,7 @@ export function LessonThumb({ lesson, src, className = "", icon = true, progress
         </div>
       ) : null}
       {lesson.durationMs ? (
-        <span className="absolute bottom-1.5 right-1.5 rounded-full border border-white/10 bg-black/55 px-2 py-0.5 font-mono text-[10.5px] font-medium text-white backdrop-blur-md">{formatClock(lesson.durationMs)}</span>
+        <span className="absolute bottom-1.5 right-1.5 rounded-full border border-white/10 bg-black/55 px-2 py-0.5 font-mono text-[10.5px] font-medium text-white">{formatClock(lesson.durationMs)}</span>
       ) : null}
       {progress && progress > 0 ? (
         <span className="absolute inset-x-0 bottom-0 h-[3px] bg-white/15" aria-label={`Visto ${Math.round(progress)}%`}>

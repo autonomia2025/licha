@@ -46,7 +46,7 @@ export default async function HomePage() {
             <div className="relative">
               <LessonThumb lesson={cont.lesson} src={cont.lesson.thumbnailPath ? signed[cont.lesson.thumbnailPath] : undefined} progress={cont.positionS && cont.lesson.durationMs ? (cont.positionS * 100000) / cont.lesson.durationMs : undefined} className="rounded-none transition-[scale] duration-300 ease-[var(--ease-out)] group-hover:scale-[1.02] md:h-full md:aspect-auto md:min-h-80" />
               <div className="absolute inset-0 grid place-items-center bg-gradient-to-r from-transparent via-transparent to-black/40 transition-colors duration-200 group-hover:bg-black/20">
-                <span className="relative grid size-20 place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_50px_-10px_#000] backdrop-blur-xl transition-[scale,background-color,color] duration-200 ease-[var(--ease-out)] group-hover:scale-105 group-hover:bg-white group-hover:text-black">
+                <span className="relative grid size-20 place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_50px_-10px_#000] transition-[scale,background-color,color] duration-200 ease-[var(--ease-out)] group-hover:scale-105 group-hover:bg-white group-hover:text-black">
                   <Play className="ml-1 size-7 fill-current" aria-hidden />
                 </span>
               </div>

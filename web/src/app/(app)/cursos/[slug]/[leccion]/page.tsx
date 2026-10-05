@@ -165,7 +165,7 @@ export default async function LessonPage({ params }: PageProps<"/cursos/[slug]/[
         <ScrollToCurrent containerId="temario" />
         {course.modules.map((m, mi) => (
           <div key={m.id}>
-            <p className="sticky top-0 z-10 border-b border-white/[0.06] bg-neutral-950/80 px-5 py-2.5 text-xs font-semibold text-muted backdrop-blur-xl">
+            <p className="sticky top-0 z-10 border-b border-white/[0.06] bg-neutral-950 px-5 py-2.5 text-xs font-semibold text-muted">
               <span className="serif mr-1.5 text-sm font-normal text-ink">{String(mi + 1).padStart(2, "0")}</span> {m.title}
             </p>
             <ol>
@@ -210,9 +210,9 @@ function ComingSoon({ lesson, thumb, external }: { lesson: Lesson; thumb?: strin
   return (
     <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/10">
       <LessonThumb lesson={lesson} src={thumb} icon={false} className="min-h-72 rounded-none opacity-70" />
-      <div className="absolute inset-0 grid place-items-center bg-black/30 p-6 backdrop-blur-md">
+      <div className="absolute inset-0 grid place-items-center bg-black/55 p-6">
         <div className="max-w-md text-center">
-          <span className="mx-auto grid size-14 place-items-center rounded-full border border-white/20 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40] backdrop-blur-xl">
+          <span className="mx-auto grid size-14 place-items-center rounded-full border border-white/20 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40]">
             <Sparkles className="size-5" aria-hidden />
           </span>
           <p className="display mt-5 text-3xl">{external ? <>Video <em>externo</em></> : <>Muy <em>pronto</em></>}</p>

@@ -97,13 +97,13 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
       </button>
 
       {presence.mounted ? createPortal(
-        <div data-state={presence.state} className="overlay fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
+        <div data-state={presence.state} className="overlay fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pt-[12vh]" onMouseDown={() => setOpen(false)}>
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Buscar clases"
             data-state={presence.state}
-            className="modal glass w-full max-w-2xl overflow-hidden bg-neutral-950/60 shadow-[0_1px_0_0_#ffffff1f_inset,0_40px_120px_-20px_#000]"
+            className="modal glass-float w-full max-w-2xl overflow-hidden bg-neutral-950/60 shadow-[0_1px_0_0_#ffffff1f_inset,0_40px_120px_-20px_#000]"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-line px-4">

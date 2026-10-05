@@ -39,3 +39,11 @@ esas funciones, no se agrega. Todo con `opacity` y `transform`; nada de rebotes 
 | Error de carga | `error.tsx` → `<ErrorView>` con "Reintentar" |
 | Imagen | `<FadeImg>` dentro de un contenedor con tamaño reservado |
 | Entrada de sección | `animate-fade-up` (máx. 120 ms de retraso acumulado); listas: 30 ms por ítem, máx. 6 |
+
+## Rendimiento (importante en Windows / GPU integradas)
+
+- El fondo (`<Backdrop/>`) es **estático**: nada animado ni que siga al cursor detrás del contenido.
+- `backdrop-filter` (desenfoque real) **solo** en superficies flotantes: `.glass-float` (cabecera, menús,
+  buscador ⌘K) y avisos. Tarjetas, chips, inputs y botones usan vidrio "pintado" (`.card`/`.glass`).
+- Nunca poner `backdrop-filter` encima del video ni en elementos que se desplazan con el scroll.
+- Medición de referencia (Chromium sin GPU): de 9–11 FPS a 57–60 FPS en inicio y clase.

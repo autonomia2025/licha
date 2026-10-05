@@ -381,7 +381,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
           aria-label="Reproducir"
           tabIndex={playing ? -1 : 0}
           aria-hidden={playing}
-          className={`absolute left-1/2 top-1/2 grid size-20 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-white/10 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_60px_-10px_#000] backdrop-blur-xl transition-[opacity,scale,background-color,color] duration-200 ease-[var(--ease-out)] hover:bg-white hover:text-black active:scale-95 sm:size-24 ${
+          className={`absolute left-1/2 top-1/2 grid size-20 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-[inset_0_1px_0_#ffffff40,0_20px_60px_-10px_#000] transition-[opacity,scale,background-color,color] duration-200 ease-[var(--ease-out)] hover:bg-white hover:text-black active:scale-95 sm:size-24 ${
             playing ? "pointer-events-none scale-90 opacity-0" : "scale-100 opacity-100"
           }`}
         >
@@ -390,7 +390,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       ) : null}
 
       {failed ? (
-        <div role="alert" className="absolute inset-0 z-20 grid animate-fade place-items-center bg-black/70 p-6 text-center backdrop-blur-xl">
+        <div role="alert" className="absolute inset-0 z-20 grid animate-fade place-items-center bg-black/70 p-6 text-center">
           <div className="max-w-xs animate-fade-up">
             <AlertCircle className="mx-auto size-6 text-white/70" aria-hidden />
             <p className="mt-3 font-semibold">No pudimos cargar el video</p>
@@ -418,7 +418,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       {toast ? (
         <div
           key={toast.id}
-          className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 animate-pop rounded-full border border-white/15 bg-black/50 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-xl"
+          className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 animate-pop rounded-full border border-white/15 bg-black/50 px-4 py-1.5 text-sm font-medium text-white"
         >
           {toast.text}
         </div>
@@ -462,7 +462,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
           />
           {hover ? (
             <span
-              className="pointer-events-none absolute -top-8 -translate-x-1/2 rounded-full border border-white/15 bg-black/70 px-2 py-0.5 font-mono text-[11px] text-white backdrop-blur-md"
+              className="pointer-events-none absolute -top-8 -translate-x-1/2 rounded-full border border-white/15 bg-black/70 px-2 py-0.5 font-mono text-[11px] text-white"
               style={{ left: hover.x }}
             >
               {clock(hover.t)}
@@ -533,7 +533,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
                 {speed}x
               </button>
               {speedMenu.mounted ? (
-                <div role="menu" data-state={speedMenu.state} className="surface absolute bottom-12 right-0 flex origin-bottom-right flex-col gap-0.5 rounded-2xl border border-white/15 bg-black/70 p-1.5 shadow-2xl backdrop-blur-2xl">
+                <div role="menu" data-state={speedMenu.state} className="surface absolute bottom-12 right-0 flex origin-bottom-right flex-col gap-0.5 rounded-2xl border border-white/15 bg-neutral-950/95 p-1.5 shadow-2xl">
                   {[...SPEEDS].reverse().map((s) => (
                     <button
                       key={s}
@@ -568,7 +568,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       </div>
 
       {ended ? (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-black/60 p-6 backdrop-blur-2xl animate-fade">
+        <div className="absolute inset-0 z-20 grid place-items-center bg-black/80 p-6 animate-fade">
           <div className="max-w-sm animate-fade-up text-center">
             <p className="serif text-4xl text-white">¡Clase completada!</p>
             {next ? (
@@ -614,7 +614,7 @@ export function VideoPlayer({ lessonId, src, poster, subtitles, startAt, path, n
       ) : null}
 
       {helpLayer.mounted ? (
-        <div data-state={helpLayer.state} className="overlay absolute inset-0 z-20 grid place-items-center bg-black/60 p-6 backdrop-blur-2xl" onClick={() => setHelp(false)}>
+        <div data-state={helpLayer.state} className="overlay absolute inset-0 z-20 grid place-items-center bg-black/85 p-6" onClick={() => setHelp(false)}>
           <div role="dialog" aria-label="Atajos de teclado" data-state={helpLayer.state} className="modal w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <p className="serif mb-5 text-3xl text-white">Atajos de teclado</p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">

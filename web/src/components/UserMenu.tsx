@@ -36,7 +36,7 @@ export function UserMenu({ viewer }: { viewer: Viewer }) {
         {initial}
       </button>
       {presence.mounted ? (
-        <div role="menu" data-state={presence.state} className="surface glass absolute right-0 top-14 w-64 origin-top-right bg-neutral-950/85 p-2">
+        <div role="menu" data-state={presence.state} className="surface glass-float absolute right-0 top-14 w-64 origin-top-right bg-neutral-950/85 p-2">
           <div className="border-b border-line px-3 pb-3 pt-2">
             <p className="serif text-lg leading-tight text-ink">{viewer.name}</p>
             <p className="truncate text-xs text-subtle">{viewer.email}</p>

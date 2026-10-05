@@ -1,7 +1,7 @@
 "use client";
 
 import { scrollBehavior } from "@/lib/motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { FileText, LocateFixed, RotateCw, Search, SearchX } from "lucide-react";
 import { EmptyState } from "@/components/States";
 import { usePlayer } from "./PlayerContext";
@@ -121,20 +121,6 @@ export function Transcript({ src }: { src: string | null }) {
       </div>
     );
 
-  const highlight = (text: string) => {
-    const t = q.trim();
-    if (!t) return text;
-    const i = norm(text).indexOf(norm(t));
-    if (i < 0) return text;
-    return (
-      <>
-        {text.slice(0, i)}
-        <mark className="rounded bg-white px-0.5 text-black">{text.slice(i, i + t.length)}</mark>
-        {text.slice(i + t.length)}
-      </>
-    );
-  };
-
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -163,22 +149,56 @@ export function Transcript({ src }: { src: string | null }) {
             Prueba con otra palabra (la transcripción está en inglés).
           </EmptyState>
         ) : null}
-        {shown.map((c) => {
-          const active = c.i === activeIndex;
-          return (
-            <button
-              key={c.i}
-              data-i={c.i}
-              onClick={() => seek(c.start)}
-              disabled={!hasVideo}
-              className={`group flex w-full gap-3 rounded-xl px-3 py-2 text-left text-[15px] leading-relaxed transition-colors duration-200 active:bg-white/[0.12] ${active ? "bg-white/[0.09] text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"} disabled:cursor-default`}
-            >
-              <span className={`mt-0.5 shrink-0 font-mono text-xs tabular-nums ${active ? "text-ink" : "text-subtle group-hover:text-ink"}`}>{formatClock(c.start * 1000) || "0:00"}</span>
-              <span>{highlight(c.text)}</span>
-            </button>
-          );
-        })}
+        {shown.map((c) => (
+          <CueRow key={c.i} i={c.i} start={c.start} text={c.text} active={c.i === activeIndex} q={q} disabled={!hasVideo} onSeek={seek} />
+        ))}
       </div>
     </div>
   );
 }
+
+/**
+ * Una frase de la transcripción. Memorizada: mientras el video corre solo se vuelven a dibujar las dos
+ * filas que cambian de "activa", no las cientos de frases de la clase.
+ */
+const CueRow = memo(function CueRow({
+  i,
+  start,
+  text,
+  active,
+  q,
+  disabled,
+  onSeek,
+}: {
+  i: number;
+  start: number;
+  text: string;
+  active: boolean;
+  q: string;
+  disabled: boolean;
+  onSeek: (t: number) => void;
+}) {
+  const t = q.trim();
+  const at = t ? norm(text).indexOf(norm(t)) : -1;
+  return (
+    <button
+      data-i={i}
+      onClick={() => onSeek(start)}
+      disabled={disabled}
+      className={`group flex w-full gap-3 rounded-xl px-3 py-2 text-left text-[15px] leading-relaxed transition-colors duration-200 active:bg-white/[0.12] ${active ? "bg-white/[0.09] text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"} disabled:cursor-default`}
+    >
+      <span className={`mt-0.5 shrink-0 font-mono text-xs tabular-nums ${active ? "text-ink" : "text-subtle group-hover:text-ink"}`}>{formatClock(start * 1000) || "0:00"}</span>
+      <span>
+        {at < 0 ? (
+          text
+        ) : (
+          <>
+            {text.slice(0, at)}
+            <mark className="rounded bg-white px-0.5 text-black">{text.slice(at, at + t.length)}</mark>
+            {text.slice(at + t.length)}
+          </>
+        )}
+      </span>
+    </button>
+  );
+});
