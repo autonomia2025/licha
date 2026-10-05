@@ -389,12 +389,16 @@ async function migrateLessonInner(ctx, page, l, supa, db, dir) {
     const uris = pl.split(/\r?\n/).map((x) => x.trim()).filter((x) => x && !x.startsWith('#')).map((x) => new URL(x, s.uri).toString());
     const texts = [];
     for (const u of uris) texts.push((await get(u)).toString('utf8'));
-    const merged = mergeSegments(texts, srcStart);
+    const merged = mergeSegments(texts, srcStart, info.duration_s);
     const lang = s.language || 'und';
     const file = path.join(dir, `${lang}.vtt`);
     await writeFile(file, merged.vtt);
-    const inRange = merged.lastEnd <= info.duration_s + 2 && merged.firstStart >= -0.5;
-    console.log(`    subtítulos ${lang}: ${merged.cueCount} cues · ${merged.firstStart.toFixed(1)}–${merged.lastEnd.toFixed(1)} s ${inRange ? '✓' : '✗ fuera de rango'}`);
+    // Los subtítulos automáticos a veces se pasan unos segundos del final: se recortan al largo del video.
+    // Si se pasan mucho (más de 15 s o 3 %), es señal de desfase y se rechaza.
+    const overflow = merged.rawLastEnd - info.duration_s;
+    const inRange = overflow <= Math.max(15, info.duration_s * 0.03) && merged.firstStart >= -0.5;
+    const note = overflow > 0.5 ? ` (recortados ${overflow.toFixed(1)} s al final del video)` : '';
+    console.log(`    subtítulos ${lang}: ${merged.cueCount} cues · ${merged.firstStart.toFixed(1)}–${merged.lastEnd.toFixed(1)} s${note} ${inRange ? '✓' : '✗ fuera de rango'}`);
     if (!merged.cueCount || !inRange) throw new Error(`Subtítulos ${lang} inválidos`);
     tracks.push({ lang, label: s.name || lang, isDefault: s.default, file, cueCount: merged.cueCount });
   }

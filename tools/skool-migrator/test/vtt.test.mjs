@@ -38,3 +38,14 @@ test('playlist fMP4 con EXT-X-MAP se reescribe a nombres locales', () => {
   assert.ok(!p.localPlaylist.includes('?t='));
   assert.throws(() => planMediaPlaylist('#EXT-X-KEY:METHOD=AES-128,URI="k"\nx.ts', 'https://h/'));
 });
+
+test('mergeSegments recorta cues que pasan del final del video', async () => {
+  const { mergeSegments } = await import('../lib/vtt.mjs');
+  const seg = 'WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nhola\n\n00:00:09.000 --> 00:00:12.000\nfin\n\n00:00:10.500 --> 00:00:11.000\nsobra\n';
+  const m = mergeSegments([seg], 0, 10);
+  assert.equal(m.rawLastEnd, 12);
+  assert.equal(m.lastEnd, 10);
+  assert.equal(m.cueCount, 2);
+  assert.equal(m.clipped, 1);
+  assert.match(m.vtt, /00:00:09.000 --> 00:00:10.000/);
+});

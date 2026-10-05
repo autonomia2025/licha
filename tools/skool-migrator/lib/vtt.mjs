@@ -45,8 +45,11 @@ export function parseSegment(text, videoStart = 0) {
   return cues;
 }
 
-/** Une segmentos, elimina cues duplicados entre segmentos y ordena. */
-export function mergeSegments(texts, videoStart = 0) {
+/**
+ * Une segmentos, elimina cues duplicados entre segmentos y ordena.
+ * Con `maxEnd` (duración del video) recorta: descarta cues que empiezan después y acorta el último.
+ */
+export function mergeSegments(texts, videoStart = 0, maxEnd = Infinity) {
   const seen = new Set();
   const cues = [];
   for (const t of texts) {
@@ -58,9 +61,18 @@ export function mergeSegments(texts, videoStart = 0) {
     }
   }
   cues.sort((a, b) => a.start - b.start || a.end - b.end);
+  const rawLastEnd = cues.reduce((m, c) => Math.max(m, c.end), 0);
+  let clipped = 0;
+  for (let i = cues.length - 1; i >= 0; i--) {
+    if (cues[i].end <= maxEnd) continue;
+    if (cues[i].start >= maxEnd - 0.05) {
+      cues.splice(i, 1);
+      clipped++;
+    } else cues[i].end = maxEnd;
+  }
   const out = ['WEBVTT', ''];
   for (const c of cues) {
     out.push(`${formatTimestamp(c.start)} --> ${formatTimestamp(c.end)}${c.settings ? ` ${c.settings}` : ''}`, c.text, '');
   }
-  return { vtt: out.join('\n'), cueCount: cues.length, lastEnd: cues.length ? cues[cues.length - 1].end : 0, firstStart: cues.length ? cues[0].start : 0 };
+  return { vtt: out.join('\n'), cueCount: cues.length, lastEnd: cues.length ? cues[cues.length - 1].end : 0, firstStart: cues.length ? cues[0].start : 0, rawLastEnd, clipped };
 }
