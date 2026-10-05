@@ -29,7 +29,12 @@ async function all(table, cols, filter) {
   for (let from = 0; ; from += 1000) {
     let q = sb.from(table).select(cols).range(from, from + 999);
     if (filter) q = filter(q);
-    const { data, error } = await q;
+    let { data, error } = await q;
+    // Errores pasajeros de Supabase (p. ej. "JWT issued at future" por diferencia de reloj): reintentar.
+    for (let i = 0; error && i < 5 && /JWT issued at future|fetch failed|timeout|ECONNRESET|50[234]/i.test(error.message); i++) {
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+      ({ data, error } = await (filter ? filter(sb.from(table).select(cols).range(from, from + 999)) : sb.from(table).select(cols).range(from, from + 999)));
+    }
     if (error) throw new Error(`${table}: ${error.message}`);
     out.push(...data);
     if (data.length < 1000) return out;
@@ -45,7 +50,8 @@ async function main() {
     await r2.setCors(origins);
     console.log(`CORS del bucket configurado para: ${origins.join(', ')} ✓`);
   } catch (e) {
-    console.log(`(aviso) No pude configurar CORS con esta clave: ${e.message.slice(0, 120)}. Se configura aparte (ver README).`);
+    // Las claves "Object Read & Write" no pueden cambiar CORS: es normal si ya se configuró en el panel.
+    console.log(/HTTP 403/.test(e.message) ? 'CORS: se mantiene el configurado en el panel de Cloudflare.' : `(aviso) No pude configurar CORS: ${e.message.slice(0, 120)}`);
   }
   const [videos, subs, lessons, courses] = await Promise.all([
     all('lesson_videos', 'storage_path', (q) => q.eq('status', 'stored').not('storage_path', 'is', null)),

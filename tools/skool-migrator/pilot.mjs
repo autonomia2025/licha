@@ -140,7 +140,7 @@ function pickLessons(db) {
 }
 
 // ------------------------------------------------------------------ Supabase
-const TRANSIENT = /fetch failed|network|timeout|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket|50[234]/i;
+const TRANSIENT = /fetch failed|network|timeout|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket|JWT issued at future|50[234]/i;
 /** Ejecuta una llamada de supabase-js ({ data, error }) con reintentos ante fallos de red transitorios. */
 async function sbRetry(fn, what) {
   let r;
@@ -560,7 +560,7 @@ async function main() {
     if (lessons.length > MAX_LESSONS) throw new Error(`El piloto admite como máximo ${MAX_LESSONS} lecciones (usa --all para migrar en orden).`);
   }
   if (!lessons.length) throw new Error(ALL ? 'No quedan videos pendientes. ✓' : 'No encontré lecciones válidas en el inventario.');
-  console.log(`${ALL ? 'Migración' : 'Piloto'}: ${lessons.length} lecciones · subida a Supabase: ${UPLOAD ? 'sí' : 'no'}`);
+  console.log(`${ALL ? 'Migración' : 'Piloto'}: ${lessons.length} lecciones · subida: ${UPLOAD ? store.name() : 'no (solo local)'}`);
 
   const ctx = await chromium.launchPersistentContext(PROFILE, {
     headless: args.headless === true,
