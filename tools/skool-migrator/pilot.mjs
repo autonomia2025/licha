@@ -497,6 +497,28 @@ ${rows.join('\n')}`;
   return file;
 }
 
+// ------------------------------------------------------------------ conexión
+const OFFLINE = /ERR_INTERNET_DISCONNECTED|ERR_NETWORK_CHANGED|ERR_NAME_NOT_RESOLVED|ERR_ADDRESS_UNREACHABLE|ERR_CONNECTION_(RESET|CLOSED|REFUSED|TIMED_OUT)|ENOTFOUND|ENETUNREACH|EAI_AGAIN|ECONNRESET|fetch failed|socket hang up/i;
+
+/** Espera (sin límite) hasta que vuelva internet: prueba cada 20 s. */
+async function waitForInternet() {
+  const t0 = Date.now();
+  process.stdout.write('    ⏸ Sin conexión a internet. Esperando a que vuelva (no cierres la terminal)…');
+  for (;;) {
+    await sleep(20000);
+    try {
+      const r = await fetch('https://www.skool.com/', { method: 'HEAD', signal: AbortSignal.timeout(10000) });
+      if (r.status < 500) {
+        console.log(`\n    ▶ Conexión recuperada tras ${Math.round((Date.now() - t0) / 60000)} min. Reintentando la misma clase.`);
+        await sleep(3000);
+        return;
+      }
+    } catch {
+      process.stdout.write('.');
+    }
+  }
+}
+
 // ------------------------------------------------------------------ sesión
 /** ¿La lección entrega su video? (solo pasa con la sesión iniciada y acceso al curso) */
 async function lessonHasVideo(page, l) {
@@ -599,7 +621,17 @@ async function main() {
     }
     console.log(`\n▶ ${l.course} ${l.module_position}.${l.position} ${l.title}`);
     try {
-      const r = await migrateLesson(ctx, page, l, supa, db);
+      let r;
+      // Si se corta internet, se pausa hasta que vuelva y se reintenta la MISMA clase (no se salta nada).
+      for (;;) {
+        try {
+          r = await migrateLesson(ctx, page, l, supa, db);
+          break;
+        } catch (e) {
+          if (!OFFLINE.test(String(e?.message ?? e))) throw e;
+          await waitForInternet();
+        }
+      }
       noAccessStreak = 0;
       results.push(r);
       usedBytes += r.size;
