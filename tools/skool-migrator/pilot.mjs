@@ -324,8 +324,13 @@ async function migrateLessonInner(ctx, page, l, supa, db, dir) {
   // Peticiones con la sesión del navegador y el Referer de la propia lección, como el reproductor.
   const get = async (u) => {
     const r = await ctx.request.get(u, { headers: { referer: l.lesson_url }, timeout: 120000 });
-    if (!r.ok()) throw new Error(`HTTP ${r.status()}`);
-    return r.body();
+    try {
+      if (!r.ok()) throw new Error(`HTTP ${r.status()}`);
+      return await r.body();
+    } finally {
+      // Sin esto Playwright guarda en memoria cada respuesta hasta cerrar el navegador (se llenaba la RAM).
+      await r.dispose().catch(() => {});
+    }
   };
   const masterUrl = `${STREAM_BASE}/${video.playbackId}.m3u8?token=${video.playbackToken}`;
   const master = parseMaster((await get(masterUrl)).toString('utf8'), masterUrl);
@@ -584,15 +589,21 @@ async function main() {
   if (!lessons.length) throw new Error(ALL ? 'No quedan videos pendientes. ✓' : 'No encontré lecciones válidas en el inventario.');
   console.log(`${ALL ? 'Migración' : 'Piloto'}: ${lessons.length} lecciones · subida: ${UPLOAD ? store.name() : 'no (solo local)'}`);
 
-  const ctx = await chromium.launchPersistentContext(PROFILE, {
-    headless: args.headless === true,
-    viewport: { width: 1280, height: 800 },
-    ...(args.chromium || process.env.CHROMIUM_PATH ? { executablePath: args.chromium || process.env.CHROMIUM_PATH } : {}),
-  });
-  // La página no reproduce nada: el reproductor no descarga segmentos por su cuenta.
-  await ctx.route('**/*', (route) => (route.request().resourceType() === 'media' ? route.abort() : route.continue()));
-  const page = ctx.pages()[0] ?? (await ctx.newPage());
+  const launch = async () => {
+    const c = await chromium.launchPersistentContext(PROFILE, {
+      headless: args.headless === true,
+      viewport: { width: 1280, height: 800 },
+      ...(args.chromium || process.env.CHROMIUM_PATH ? { executablePath: args.chromium || process.env.CHROMIUM_PATH } : {}),
+    });
+    // La página no reproduce nada: el reproductor no descarga segmentos por su cuenta.
+    await c.route('**/*', (route) => (route.request().resourceType() === 'media' ? route.abort() : route.continue()));
+    return [c, c.pages()[0] ?? (await c.newPage())];
+  };
+  let [ctx, page] = await launch();
   await ensureSession(page, lessons[0]);
+  // Cada cierto número de clases se reinicia el navegador para devolver memoria (la sesión queda en el perfil).
+  const RESTART_EVERY = 10;
+  let sinceRestart = 0;
 
   const results = [];
   let noAccessStreak = 0;
@@ -618,6 +629,11 @@ async function main() {
         break;
       }
       continue;
+    }
+    if (++sinceRestart > RESTART_EVERY) {
+      sinceRestart = 1;
+      await ctx.close().catch(() => {});
+      [ctx, page] = await launch();
     }
     console.log(`\n▶ ${l.course} ${l.module_position}.${l.position} ${l.title}`);
     try {
