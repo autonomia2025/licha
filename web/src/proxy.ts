@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/ingresar", "/restablecer", "/auth"];
+const PUBLIC_PATHS = ["/ingresar", "/restablecer", "/auth", "/api/mantener-activo"]; // esta última la protege su propio secreto
 
 /**
  * Refresca la sesión de Supabase en cada petición y redirige a /ingresar si no hay sesión.
