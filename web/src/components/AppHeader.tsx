@@ -19,7 +19,7 @@ export function AppHeader({ viewer, demo, items }: { viewer: Viewer; demo: boole
           <Link href="/" aria-label="Inicio" className="shrink-0">
             <Logo />
           </Link>
-          <NavLinks />
+          <NavLinks admin={viewer.isAdmin} />
           <CommandPalette items={items} />
           <UserMenu viewer={viewer} />
         </div>

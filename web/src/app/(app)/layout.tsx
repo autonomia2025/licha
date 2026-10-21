@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { Logo } from "@/components/ui";
-import { getLibrary, getViewer, hasAccess, isDemo } from "@/lib/data";
+import { getLibrary, getViewer, hasAccess, isAdmin, isDemo } from "@/lib/data";
 import { splitEmoji } from "@/lib/format";
 import { signOut } from "@/app/actions";
 
@@ -9,7 +9,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const viewer = await getViewer();
   if (!viewer) redirect("/ingresar");
 
-  if (!(await hasAccess())) {
+  const admin = await isAdmin();
+  if (!admin && !(await hasAccess())) {
     return (
       <main className="grid flex-1 place-items-center px-6 py-24">
         <div className="card max-w-md animate-fade-up p-8 text-center">
@@ -35,7 +36,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <>
-      <AppHeader viewer={viewer} demo={isDemo} items={items} />
+      <AppHeader viewer={{ ...viewer, isAdmin: admin }} demo={isDemo} items={items} />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-line/60 py-8 text-center text-xs text-subtle">© {new Date().getFullYear()} Estudio de Licha · Área de alumnos</footer>
     </>

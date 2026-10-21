@@ -8,11 +8,12 @@ const LINKS = [
   { href: "/cursos", label: "Cursos", match: (p: string) => p.startsWith("/cursos") },
 ];
 
-export function NavLinks() {
+export function NavLinks({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
+  const links = admin ? [...LINKS, { href: "/admin", label: "Alumnos", match: (p: string) => p.startsWith("/admin") }] : LINKS;
   return (
     <nav className="relative isolate ml-4 hidden items-center gap-1 sm:flex" aria-label="Principal">
-      {LINKS.map((l) => {
+      {links.map((l) => {
         const active = l.match(pathname);
         return (
           <Link

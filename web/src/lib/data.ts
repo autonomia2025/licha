@@ -22,6 +22,14 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   return { email: data.user.email, name: name.split(" ")[0] };
 });
 
+/** ¿Es administradora/or del estudio? (tabla admins; false si la migración aún no se ha aplicado) */
+export const isAdmin = cache(async (): Promise<boolean> => {
+  if (isDemo) return true;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("is_admin");
+  return data === true;
+});
+
 /** ¿El usuario está en la lista de alumnos activos? */
 export const hasAccess = cache(async (): Promise<boolean> => {
   if (isDemo) return true;

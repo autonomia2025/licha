@@ -18,8 +18,15 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get("password") ?? "");
   if (!email || !password) return { error: "Ingresa tu correo y contraseña." };
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message === "Invalid login credentials" ? "Correo o contraseña incorrectos." : "No pudimos iniciar sesión. Inténtalo de nuevo." };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.user) return { error: error?.message === "Invalid login credentials" ? "Correo o contraseña incorrectos." : "No pudimos iniciar sesión. Inténtalo de nuevo." };
+  // Registro del ingreso para el panel de administración. Nunca debe impedir entrar (si la tabla aún no existe, se ignora).
+  try {
+    const ua = (await headers()).get("user-agent")?.slice(0, 300) ?? null;
+    await supabase.from("login_events").insert({ user_id: data.user.id, email, user_agent: ua });
+  } catch {
+    /* sin registro */
+  }
   redirect(safeNext(form.get("volver")));
 }
 

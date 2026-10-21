@@ -61,6 +61,7 @@ export interface ProgressEntry {
 export interface Viewer {
   email: string;
   name: string;
+  isAdmin?: boolean;
 }
 
 export interface Note {

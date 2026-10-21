@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Home, Loader2, LogOut } from "lucide-react";
+import { BookOpen, Home, Loader2, LogOut, Users } from "lucide-react";
 import { signOut } from "@/app/actions";
 import type { Viewer } from "@/lib/types";
 import { usePresence } from "@/lib/usePresence";
@@ -49,6 +49,11 @@ export function UserMenu({ viewer }: { viewer: Viewer }) {
               <BookOpen className="size-4" /> Cursos
             </Link>
           </div>
+          {viewer.isAdmin ? (
+            <Link href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted transition-colors duration-150 hover:bg-white/[0.08] hover:text-ink active:bg-white/[0.12]">
+              <Users className="size-4" /> Administrar alumnos
+            </Link>
+          ) : null}
           <form action={signOut} onSubmit={() => setSigningOut(true)}>
             <button role="menuitem" aria-busy={signingOut} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted transition-colors duration-150 hover:bg-white/[0.08] hover:text-ink active:bg-white/[0.12]">
               {signingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />} {signingOut ? "Cerrando sesión…" : "Cerrar sesión"}
